@@ -1,22 +1,22 @@
 ```javascript
 // ============================================================================
 // गहोई पोर्टल — common.js
-// हर .html page यही file include करेगा (भाग 2 का MPA pattern — shared JS,
-// कोई JS-router नहीं, असली <a href> navigation)
+// हर .html page यही file include करेगा
 // ============================================================================
 
-// SUPABASE_URL/ANON_KEY public/config.js से आते हैं.
-// हर page में config.js को common.js से पहले load होना चाहिए.
+// ----------------------------------------------------------------------------
+// Supabase configuration
+// config.js MUST be loaded before common.js
+// ----------------------------------------------------------------------------
+
 const SUPABASE_URL = window.GP_CONFIG.SUPABASE_URL;
 const SUPABASE_ANON_KEY = window.GP_CONFIG.SUPABASE_ANON_KEY;
 
 // ----------------------------------------------------------------------------
 // Supabase client
-//
-// Google OAuth के लिए PKCE flow explicitly use किया जा रहा है.
-// detectSessionInUrl: true होने से auth-callback.html पर Supabase
-// URL में आए OAuth code को automatically process कर सकता है.
+// Google OAuth के लिए PKCE flow use किया जा रहा है.
 // ----------------------------------------------------------------------------
+
 const gpSupabase = supabase.createClient(
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
@@ -33,6 +33,7 @@ const gpSupabase = supabase.createClient(
 // ----------------------------------------------------------------------------
 // Referral-link capture
 // ----------------------------------------------------------------------------
+
 (function captureReferral() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -49,10 +50,13 @@ const gpSupabase = supabase.createClient(
 // ----------------------------------------------------------------------------
 // Public settings
 // ----------------------------------------------------------------------------
+
 let _gpPublicConfigCache = null;
 
 async function gpGetPublicConfig() {
-  if (_gpPublicConfigCache) return _gpPublicConfigCache;
+  if (_gpPublicConfigCache) {
+    return _gpPublicConfigCache;
+  }
 
   const { data, error } = await gpSupabase
     .from("settings")
@@ -61,7 +65,9 @@ async function gpGetPublicConfig() {
     .maybeSingle();
 
   _gpPublicConfigCache =
-    (!error && data && data.data) ? data.data : {};
+    (!error && data && data.data)
+      ? data.data
+      : {};
 
   return _gpPublicConfigCache;
 }
@@ -69,14 +75,20 @@ async function gpGetPublicConfig() {
 async function gpGetPublicSetting(key, fallback) {
   const config = await gpGetPublicConfig();
 
-  return (key in config && config[key] !== "")
-    ? config[key]
-    : fallback;
+  if (
+    Object.prototype.hasOwnProperty.call(config, key) &&
+    config[key] !== ""
+  ) {
+    return config[key];
+  }
+
+  return fallback;
 }
 
 // ----------------------------------------------------------------------------
 // Generic settings document helper
 // ----------------------------------------------------------------------------
+
 const _gpSettingsDocCache = {};
 
 async function gpGetSettingsDoc(docId) {
@@ -91,7 +103,9 @@ async function gpGetSettingsDoc(docId) {
     .maybeSingle();
 
   const result =
-    (!error && data && data.data) ? data.data : {};
+    (!error && data && data.data)
+      ? data.data
+      : {};
 
   _gpSettingsDocCache[docId] = result;
 
@@ -101,22 +115,30 @@ async function gpGetSettingsDoc(docId) {
 async function gpGetSetting(docId, key, fallback) {
   const doc = await gpGetSettingsDoc(docId);
 
-  return (
-    key in doc &&
+  if (
+    Object.prototype.hasOwnProperty.call(doc, key) &&
     doc[key] !== "" &&
     doc[key] !== null
-  )
-    ? doc[key]
-    : fallback;
+  ) {
+    return doc[key];
+  }
+
+  return fallback;
 }
 
 // ----------------------------------------------------------------------------
 // Auth guard
 // ----------------------------------------------------------------------------
+
 async function gpRequireLogin(redirectTo = "login.html") {
   const {
-    data: { session }
+    data: { session },
+    error
   } = await gpSupabase.auth.getSession();
+
+  if (error) {
+    console.error("gpRequireLogin session error:", error);
+  }
 
   if (!session) {
     window.location.href = redirectTo;
@@ -127,23 +149,41 @@ async function gpRequireLogin(redirectTo = "login.html") {
 }
 
 // ----------------------------------------------------------------------------
-// Current user's persons row
+// Current user's profile
 // ----------------------------------------------------------------------------
+
 async function gpGetMyProfile() {
   const {
-    data: { session }
+    data: { session },
+    error: sessionError
   } = await gpSupabase.auth.getSession();
 
-  if (!session) return null;
+  if (sessionError) {
+    console.error(
+      "gpGetMyProfile session error:",
+      sessionError
+    );
+    return null;
+  }
 
-  const { data, error } = await gpSupabase
+  if (!session) {
+    return null;
+  }
+
+  const {
+    data,
+    error
+  } = await gpSupabase
     .from("persons")
     .select("*")
     .eq("auth_uid", session.user.id)
     .maybeSingle();
 
   if (error) {
-    console.error("gpGetMyProfile error:", error);
+    console.error(
+      "gpGetMyProfile error:",
+      error
+    );
     return null;
   }
 
@@ -153,27 +193,49 @@ async function gpGetMyProfile() {
 // ----------------------------------------------------------------------------
 // Edge Function helper
 // ----------------------------------------------------------------------------
+
 async function gpCallFunction(functionName, payload) {
   const {
-    data: { session }
+    data: { session },
+    error: sessionError
   } = await gpSupabase.auth.getSession();
 
-  const { data, error } = await gpSupabase.functions.invoke(
+  if (sessionError) {
+    console.error(
+      "gpCallFunction session error:",
+      sessionError
+    );
+  }
+
+  const headers = {};
+
+  if (session && session.access_token) {
+    headers.Authorization =
+      "Bearer " + session.access_token;
+  }
+
+  const {
+    data,
+    error
+  } = await gpSupabase.functions.invoke(
     functionName,
     {
       body: payload,
-      headers: session
-        ? {
-            Authorization: `Bearer ${session.access_token}`
-          }
-        : {}
+      headers: headers
     }
   );
 
   if (error) {
+    console.error(
+      "gpCallFunction error:",
+      error
+    );
+
     return {
       success: false,
-      message: error.message || "Request failed."
+      message:
+        error.message ||
+        "Request failed."
     };
   }
 
@@ -183,6 +245,7 @@ async function gpCallFunction(functionName, payload) {
 // ----------------------------------------------------------------------------
 // Cloudinary — unsigned upload helper
 // ----------------------------------------------------------------------------
+
 async function gpUploadToCloudinary(
   file,
   folder = "gahoi-portal"
@@ -214,26 +277,41 @@ async function gpUploadToCloudinary(
   ) {
     return {
       success: false,
-      message: "कृपया एक image file चुनें।"
+      message:
+        "कृपया एक image file चुनें।"
     };
   }
 
   if (file.size > 5 * 1024 * 1024) {
     return {
       success: false,
-      message: "Image 5MB से बड़ी नहीं होनी चाहिए।"
+      message:
+        "Image 5MB से बड़ी नहीं होनी चाहिए।"
     };
   }
 
   const formData = new FormData();
 
-  formData.append("file", file);
-  formData.append("upload_preset", uploadPreset);
-  formData.append("folder", folder);
+  formData.append(
+    "file",
+    file
+  );
+
+  formData.append(
+    "upload_preset",
+    uploadPreset
+  );
+
+  formData.append(
+    "folder",
+    folder
+  );
 
   try {
     const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      "https://api.cloudinary.com/v1_1/" +
+      cloudName +
+      "/image/upload",
       {
         method: "POST",
         body: formData
@@ -246,7 +324,10 @@ async function gpUploadToCloudinary(
       return {
         success: false,
         message:
-          (data.error && data.error.message) ||
+          (
+            data.error &&
+            data.error.message
+          ) ||
           "Upload असफल रहा।"
       };
     }
@@ -255,33 +336,48 @@ async function gpUploadToCloudinary(
       success: true,
       url: data.secure_url
     };
+
   } catch (e) {
     return {
       success: false,
-      message: "Upload नहीं हो सका: " + e.message
+      message:
+        "Upload नहीं हो सका: " +
+        e.message
     };
   }
 }
 
 // ----------------------------------------------------------------------------
-// Simple alert-box helper
+// Alert helpers
 // ----------------------------------------------------------------------------
+
 function gpShowAlert(
   elId,
   message,
   type = "error"
 ) {
-  const el = document.getElementById(elId);
+  const el =
+    document.getElementById(elId);
 
-  if (!el) return;
+  if (!el) {
+    console.warn(
+      "gpShowAlert: element not found:",
+      elId
+    );
+    return;
+  }
 
-  el.className = `gp-alert gp-alert-${type}`;
+  el.className =
+    "gp-alert gp-alert-" + type;
+
   el.textContent = message;
+
   el.style.display = "block";
 }
 
 function gpHideAlert(elId) {
-  const el = document.getElementById(elId);
+  const el =
+    document.getElementById(elId);
 
   if (el) {
     el.style.display = "none";
@@ -291,6 +387,7 @@ function gpHideAlert(elId) {
 // ----------------------------------------------------------------------------
 // Feature flags
 // ----------------------------------------------------------------------------
+
 async function gpIsFeatureEnabled(
   flagKey,
   fallback = true
@@ -306,26 +403,34 @@ async function gpGuardFeature(
   flagKey,
   featureLabelHindi
 ) {
-  const enabled = await gpIsFeatureEnabled(
-    flagKey,
-    true
-  );
+  const enabled =
+    await gpIsFeatureEnabled(
+      flagKey,
+      true
+    );
 
-  if (enabled) return true;
+  if (enabled) {
+    return true;
+  }
 
-  const customMsg = await gpGetSetting(
-    "featureFlags",
-    "portalMaintenanceMessage",
-    ""
-  );
+  const customMsg =
+    await gpGetSetting(
+      "featureFlags",
+      "portalMaintenanceMessage",
+      ""
+    );
 
   window.alert(
-    customMsg && customMsg.trim()
+    customMsg &&
+    customMsg.trim()
       ? customMsg
-      : `⚠️ "${featureLabelHindi}" फ़िलहाल Admin द्वारा बंद किया गया है। कृपया बाद में कोशिश करें।`
+      : "⚠️ \"" +
+        featureLabelHindi +
+        "\" फ़िलहाल Admin द्वारा बंद किया गया है। कृपया बाद में कोशिश करें।"
   );
 
-  window.location.href = "home.html";
+  window.location.href =
+    "home.html";
 
   return false;
 }
