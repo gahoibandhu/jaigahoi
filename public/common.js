@@ -1,4 +1,3 @@
-```javascript
 // ============================================================================
 // गहोई पोर्टल — common.js
 // हर .html page यही file include करेगा
@@ -434,4 +433,3 @@ async function gpGuardFeature(
 
   return false;
 }
-```
