@@ -102,6 +102,50 @@ async function gpGetMyProfile() {
 // ----------------------------------------------------------------------------
 // Edge Function बुलाने का साझा helper — हमेशा current session का JWT भेजेगा
 // ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// Cloudinary — unsigned upload helper (कोई असली "Cloudinary setup" फ़िलहाल कहीं
+// भी functional नहीं था — profile.html/complete-profile.html में photo field ही
+// नहीं था, gallery.html सिर्फ़ पहले से मौजूद URL paste करने देता था। यह असली gap
+// था, यहीं fix कर रहे हैं।
+//
+// Unsigned upload को सिर्फ़ cloudName + uploadPreset चाहिए (दोनों publicConfig
+// में, migration 0014 के बाद publicly readable) — apiKey/apiSecret की ज़रूरत ही
+// नहीं होती unsigned upload के लिए, वो सिर्फ़ delete/signed operations के लिए हैं
+// (जो client से कभी नहीं करने चाहिए — इसलिए यहाँ छुए भी नहीं)।
+// ----------------------------------------------------------------------------
+async function gpUploadToCloudinary(file, folder = "gahoi-portal") {
+  const cloudName = await gpGetSetting("publicConfig", "cloudinaryCloudName", "");
+  const uploadPreset = await gpGetSetting("publicConfig", "cloudinaryUploadPreset", "");
+  if (!cloudName || !uploadPreset) {
+    return { success: false, message: "Cloudinary अभी configure नहीं है — Admin को Settings में Cloud Name/Upload Preset भरने दें।" };
+  }
+  if (!file || !file.type || !file.type.startsWith("image/")) {
+    return { success: false, message: "कृपया एक image file चुनें।" };
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return { success: false, message: "Image 5MB से बड़ी नहीं होनी चाहिए।" };
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", uploadPreset);
+  formData.append("folder", folder);
+
+  try {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: "POST",
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok || !data.secure_url) {
+      return { success: false, message: (data.error && data.error.message) || "Upload असफल रहा।" };
+    }
+    return { success: true, url: data.secure_url };
+  } catch (e) {
+    return { success: false, message: "Upload नहीं हो सका: " + e.message };
+  }
+}
+
 async function gpCallFunction(functionName, payload) {
   const { data: { session } } = await gpSupabase.auth.getSession();
   const { data, error } = await gpSupabase.functions.invoke(functionName, {

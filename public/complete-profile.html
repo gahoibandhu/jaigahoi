@@ -52,6 +52,11 @@
           <datalist id="aknaOptions"></datalist>
           <div class="gp-hint">सूची में ना मिले तो भी टाइप करें — Admin review करेंगे</div>
         </div>
+        <div class="gp-field">
+          <label>फ़ोटो (optional — बाद में भी लगा सकते हैं)</label>
+          <input type="file" id="photoInput" accept="image/*">
+          <div id="photoStatus" style="font-size:.78rem;color:var(--gp-text-muted);margin-top:4px"></div>
+        </div>
         <button type="submit" class="gp-btn" id="profileSubmitBtn">Registration पूरी करें</button>
       </form>
     </div>
@@ -62,6 +67,18 @@
   <script>
     // ── Login-guard: बिना session यहाँ नहीं आ सकते ──────────────────────────────
     let currentSession = null;
+    let uploadedPhotoUrl = "";
+
+    document.getElementById("photoInput").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById("photoStatus");
+      statusEl.textContent = "Upload हो रहा है...";
+      const result = await gpUploadToCloudinary(file, "profile-photos");
+      if (!result.success) { statusEl.textContent = "❌ " + result.message; return; }
+      uploadedPhotoUrl = result.url;
+      statusEl.textContent = "✅ फ़ोटो तैयार है।";
+    });
     (async () => {
       currentSession = await gpRequireLogin("register.html");
       if (!currentSession) return;
@@ -98,6 +115,7 @@
         native: document.getElementById("native").value.trim(),
         akna: document.getElementById("akna").value.trim(),
         referrerGahoiId: localStorage.getItem("gp_referrer_gahoi_id") || "",
+        photo: uploadedPhotoUrl || "",
       };
 
       const result = await gpCallFunction("register", payload);

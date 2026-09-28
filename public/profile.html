@@ -33,6 +33,9 @@
     .gp-save-bar {
       position: sticky; bottom: 0; background: var(--gp-bg); padding: 14px 0;
     }
+    .gp-photo-section { display: flex; align-items: center; gap: 16px; background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 20px; box-shadow: var(--gp-shadow); margin-bottom: 18px; }
+    .gp-photo-preview { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: var(--gp-bg); flex-shrink: 0; }
+    .gp-photo-placeholder { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
   </style>
 </head>
 <body>
@@ -47,6 +50,16 @@
 
   <div class="gp-profile-wrap">
     <p><a href="home.html">← होम पर वापस</a></p>
+
+    <div class="gp-photo-section">
+      <img id="photoPreview" class="gp-photo-preview" src="" alt="" style="display:none">
+      <div id="photoPlaceholder" class="gp-photo-preview gp-photo-placeholder">📷</div>
+      <div>
+        <label class="gp-btn gp-btn-sm" for="photoInput" style="cursor:pointer">फ़ोटो बदलें</label>
+        <input type="file" id="photoInput" accept="image/*" style="display:none">
+        <div id="photoStatus" style="font-size:.78rem;color:var(--gp-text-muted);margin-top:4px"></div>
+      </div>
+    </div>
 
     <div class="gp-tier-strip">
       <div class="gp-tier-circle Bronze" id="tierCircle">0%</div>
@@ -147,9 +160,23 @@
       document.getElementById("anniField").style.display = married ? "block" : "none";
     }
 
+    function showPhoto(url) {
+      const img = document.getElementById("photoPreview");
+      const placeholder = document.getElementById("photoPlaceholder");
+      if (url) {
+        img.src = url;
+        img.style.display = "block";
+        placeholder.style.display = "none";
+      } else {
+        img.style.display = "none";
+        placeholder.style.display = "flex";
+      }
+    }
+
     function fillForm(p) {
       const profile = p.profile || {};
       const privacy = p.privacy_settings || {};
+      showPhoto(p.photo || "");
       document.getElementById("profession").value = p.profession || "";
       document.getElementById("designation").value = p.designation || "";
       document.getElementById("address").value = p.address || "";
@@ -171,6 +198,29 @@
     }
 
     document.getElementById("marital").addEventListener("change", toggleMaritalFields);
+
+    document.getElementById("photoInput").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById("photoStatus");
+      statusEl.textContent = "Upload हो रहा है...";
+
+      const result = await gpUploadToCloudinary(file, "profile-photos");
+      if (!result.success) {
+        statusEl.textContent = "❌ " + result.message;
+        return;
+      }
+
+      const { error } = await gpSupabase.from("persons").update({ photo: result.url }).eq("gahoi_id", myProfile.gahoi_id);
+      if (error) {
+        statusEl.textContent = "❌ Save नहीं हुआ: " + error.message;
+        return;
+      }
+
+      myProfile.photo = result.url;
+      showPhoto(result.url);
+      statusEl.textContent = "✅ फ़ोटो update हो गई!";
+    });
 
     document.getElementById("profileForm").addEventListener("submit", async (e) => {
       e.preventDefault();

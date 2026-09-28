@@ -132,6 +132,7 @@
                 ${p.interestStatus === "mutual" ? "💑 Matched" : p.interestStatus ? "✓ Interest भेजा" : "💌 Interest भेजें"}
               </button>
             </div>` : `<div style="margin-top:10px; font-size:.8rem; color:var(--gp-text-muted)">यह आपकी अपनी profile है</div>`}
+            <div style="margin-top:8px"><a href="matrimony-biodata.html?id=${p.id}" target="_blank" rel="noopener" style="font-size:.8rem">🖨 Biodata Print करें</a></div>
           </div>
         `;
         grid.appendChild(card);
