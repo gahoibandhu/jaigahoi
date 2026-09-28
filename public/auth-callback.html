@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>प्रतीक्षा करें... — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <div class="gp-container" style="margin-top:100px; text-align:center">
+    <p style="color:var(--gp-text-muted)">कृपया प्रतीक्षा करें, आपको भेजा जा रहा है...</p>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    // Email-confirmation link या Google OAuth, दोनों यहीं redirect होकर आते हैं।
+    // supabase-js अपने-आप URL से session detect कर लेता है (detectSessionInUrl default true)।
+    (async () => {
+      // session बनने का थोड़ा wait — supabase-js को URL parse करने का मौका देना
+      const { data: { session } } = await gpSupabase.auth.getSession();
+
+      if (!session) {
+        window.location.href = "login.html";
+        return;
+      }
+
+      const profile = await gpGetMyProfile();
+      if (!profile) {
+        window.location.href = "complete-profile.html";
+      } else if (profile.status === "Pending") {
+        window.location.href = "pending-approval.html";
+      } else {
+        window.location.href = "home.html";
+      }
+    })();
+  </script>
+</body>
+</html>

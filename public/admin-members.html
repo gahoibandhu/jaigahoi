@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>All Members — गहोई पोर्टल Admin</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-admin-wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    .gp-admin-nav { display: flex; gap: 16px; margin-bottom: 6px; font-size: .9rem; }
+    .gp-admin-nav a { color: var(--gp-navy); font-weight: 600; text-decoration: none; }
+    .gp-admin-nav a:hover { text-decoration: underline; }
+
+    .gp-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; align-items: center; }
+    .gp-toolbar input, .gp-toolbar select {
+      padding: 9px 12px; border: 1.5px solid var(--gp-border); border-radius: 8px;
+      font-size: .87rem; font-family: inherit;
+    }
+    .gp-toolbar input[type="text"] { min-width: 160px; }
+    .gp-toolbar button {
+      padding: 9px 16px; border: none; border-radius: 8px; font-weight: 700;
+      cursor: pointer; font-size: .87rem;
+    }
+    .gp-btn-search { background: var(--gp-gold); color: var(--gp-navy); }
+    .gp-btn-export { background: #fff; color: var(--gp-navy); border: 1.5px solid var(--gp-border) !important; }
+
+    .gp-table-wrap { overflow-x: auto; background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); }
+    table.gp-mtable { width: 100%; border-collapse: collapse; font-size: .85rem; white-space: nowrap; }
+    table.gp-mtable th, table.gp-mtable td { padding: 10px 12px; border-bottom: 1px solid var(--gp-border); text-align: left; }
+    table.gp-mtable th { background: var(--gp-bg); color: var(--gp-navy); font-size: .78rem; text-transform: uppercase; letter-spacing: .3px; }
+    table.gp-mtable tr:last-child td { border-bottom: none; }
+    .gp-status-badge { font-size: .72rem; font-weight: 700; padding: 2px 9px; border-radius: 10px; }
+    .gp-status-Approved { background: #e8f5ee; color: var(--gp-success); }
+    .gp-status-Pending { background: var(--gp-warning-bg); color: var(--gp-gold-dark); }
+    .gp-status-Rejected, .gp-status-Inactive { background: #fdecea; color: var(--gp-error); }
+    .gp-role-select { padding: 5px 8px; border-radius: 6px; border: 1.5px solid var(--gp-border); font-size: .8rem; font-family: inherit; }
+    .gp-edit-btn { background: var(--gp-navy); color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: .78rem; font-weight: 600; }
+
+    .gp-pagination { display: flex; justify-content: center; gap: 10px; margin-top: 20px; align-items: center; }
+    .gp-pagination button {
+      padding: 8px 16px; border: 1.5px solid var(--gp-border); background: #fff;
+      border-radius: 8px; cursor: pointer; font-weight: 600;
+    }
+    .gp-pagination button:disabled { opacity: .4; cursor: not-allowed; }
+    .gp-empty, .gp-loading { text-align: center; color: var(--gp-text-muted); padding: 30px 0; }
+
+    /* Edit modal */
+    .gp-modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(15,37,64,.55);
+      align-items: center; justify-content: center; padding: 16px; z-index: 100;
+    }
+    .gp-modal-overlay.gp-open { display: flex; }
+    .gp-modal {
+      background: #fff; border-radius: var(--gp-radius-lg); padding: 24px;
+      max-width: 640px; width: 100%; max-height: 88vh; overflow-y: auto;
+    }
+    .gp-modal h3 { color: var(--gp-navy); margin-top: 0; }
+    .gp-modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .gp-modal-grid .gp-field-full { grid-column: 1 / -1; }
+    .gp-modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .gp-modal-actions button { flex: 1; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>गहोई पोर्टल — Admin</h1>
+      <p class="gp-header-sub">All Members</p>
+    </div>
+  </div>
+
+  <div class="gp-admin-wrap">
+    <div class="gp-admin-nav">
+      <a href="home.html">← होम</a>
+      <a href="admin-pending.html">⏳ Pending Approvals</a>
+    </div>
+
+    <div id="adminAlert" class="gp-alert"></div>
+
+    <div class="gp-toolbar">
+      <input type="text" id="qInput" placeholder="नाम / शहर / मूल निवास / अकना खोजें...">
+      <select id="statusFilter">
+        <option value="">सभी Status</option>
+        <option value="Approved">Approved</option>
+        <option value="Pending">Pending</option>
+        <option value="Rejected">Rejected</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+      <select id="roleFilter">
+        <option value="">सभी Role</option>
+        <option value="Admin">Admin</option>
+        <option value="Approver">Approver</option>
+        <option value="mahasabhaPrint">mahasabhaPrint</option>
+        <option value="">(कोई role नहीं)</option>
+      </select>
+      <button class="gp-btn-search" id="searchBtn">खोजें</button>
+      <button class="gp-btn-export" id="exportBtn">⬇ Export CSV</button>
+    </div>
+
+    <div class="gp-loading" id="loadingState" style="display:none">Load हो रहा है...</div>
+
+    <div class="gp-table-wrap">
+      <table class="gp-mtable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>GahoiId</th>
+            <th>Mobile</th>
+            <th>City</th>
+            <th>Native</th>
+            <th>Akna</th>
+            <th>Status</th>
+            <th>Role</th>
+            <th>Tier</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="memberTbody"></tbody>
+      </table>
+      <div class="gp-empty" id="emptyState" style="display:none">कोई member नहीं मिला — filters बदल कर देखें</div>
+    </div>
+
+    <div class="gp-pagination" id="paginationBar" style="display:none">
+      <button id="prevBtn">← पिछला</button>
+      <span id="pageInfo"></span>
+      <button id="nextBtn">अगला →</button>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="gp-modal-overlay" id="editOverlay">
+    <div class="gp-modal">
+      <h3 id="editModalTitle">Member Edit करें</h3>
+      <div id="editAlert" class="gp-alert"></div>
+      <div class="gp-modal-grid" id="editFields"></div>
+      <div class="gp-modal-actions">
+        <button class="gp-btn gp-btn-secondary" id="editCancelBtn" type="button">रद्द करें</button>
+        <button class="gp-btn" id="editSaveBtn" type="button">सेव करें</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    const PAGE_SIZE = 25;
+    let currentPage = 1;
+    let totalPages = 1;
+    let totalCount = 0;
+    let myRole = null;
+    let editingGahoiId = null;
+    let editingSourceRow = null;
+
+    // सीधे supabase-js से (Edge Function नहीं) — Admin/Approver के लिए RLS पॉलिसी
+    // `persons_select_approved` (0005) पहले से हर status की row पढ़ने देती है,
+    // और यहाँ कोई column-masking भी नहीं चाहिए (Admin को सब दिखना ही चाहिए) —
+    // इसलिए directory-search जैसा Edge Function यहाँ बनाना ज़रूरत से ज़्यादा होता।
+    const LIST_COLUMNS =
+      "gahoi_id, name, father, mobile, email, profession, designation, address, city, pincode, " +
+      "native, akna, bday, anni, status, role, marital, spouse, show_mobile, keywords, photo, " +
+      "blood_group, profile, profile_tier, completion_percent, created_at";
+
+    function buildQuery() {
+      let q = gpSupabase.from("persons").select(LIST_COLUMNS, { count: "exact" });
+      const text = document.getElementById("qInput").value.trim();
+      const status = document.getElementById("statusFilter").value;
+      const role = document.getElementById("roleFilter").value;
+
+      if (text) {
+        const t = `%${text}%`;
+        q = q.or(`name.ilike.${t},city.ilike.${t},native.ilike.${t},akna.ilike.${t},mobile.ilike.${t},gahoi_id.ilike.${t}`);
+      }
+      if (status) q = q.eq("status", status);
+      if (document.getElementById("roleFilter").selectedIndex > 0) q = q.eq("role", role);
+      return q.order("created_at", { ascending: false });
+    }
+
+    function renderRows(rows) {
+      const tbody = document.getElementById("memberTbody");
+      tbody.innerHTML = "";
+      document.getElementById("emptyState").style.display = rows.length === 0 ? "block" : "none";
+
+      rows.forEach((m) => {
+        const tr = document.createElement("tr");
+        const roleControl = (myRole === "Admin")
+          ? `<select class="gp-role-select" data-id="${m.gahoi_id}" data-current="${m.role || ""}">
+               <option value="" ${!m.role ? "selected" : ""}>—</option>
+               <option value="Admin" ${m.role === "Admin" ? "selected" : ""}>Admin</option>
+               <option value="Approver" ${m.role === "Approver" ? "selected" : ""}>Approver</option>
+               <option value="mahasabhaPrint" ${m.role === "mahasabhaPrint" ? "selected" : ""}>mahasabhaPrint</option>
+             </select>`
+          : (m.role || "—");
+
+        tr.innerHTML = `
+          <td>${m.name || ""}</td>
+          <td>${m.gahoi_id}</td>
+          <td>${m.mobile || "—"}</td>
+          <td>${m.city || "—"}</td>
+          <td>${m.native || "—"}</td>
+          <td>${m.akna || "—"}</td>
+          <td><span class="gp-status-badge gp-status-${m.status}">${m.status}</span></td>
+          <td>${roleControl}</td>
+          <td>${m.profile_tier || "Bronze"} (${m.completion_percent || 0}%)</td>
+          <td><button class="gp-edit-btn" data-id="${m.gahoi_id}">Edit</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      tbody.querySelectorAll(".gp-edit-btn").forEach((btn) => {
+        btn.addEventListener("click", () => openEditModal(btn.getAttribute("data-id"), rows));
+      });
+
+      if (myRole === "Admin") {
+        tbody.querySelectorAll(".gp-role-select").forEach((sel) => {
+          sel.addEventListener("change", async () => {
+            const targetGahoiId = sel.getAttribute("data-id");
+            const prevValue = sel.getAttribute("data-current");
+            const newRole = sel.value;
+            sel.disabled = true;
+            const result = await gpCallFunction("admin-set-role", { targetGahoiId, role: newRole });
+            sel.disabled = false;
+            if (!result.success) {
+              gpShowAlert("adminAlert", result.message || "Role बदलना असफल रहा।", "error");
+              sel.value = prevValue;
+              return;
+            }
+            sel.setAttribute("data-current", newRole);
+          });
+        });
+      }
+    }
+
+    async function runSearch() {
+      gpHideAlert("adminAlert");
+      document.getElementById("loadingState").style.display = "block";
+      document.getElementById("paginationBar").style.display = "none";
+
+      const from = (currentPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, error, count } = await buildQuery().range(from, to);
+
+      document.getElementById("loadingState").style.display = "none";
+      if (error) {
+        gpShowAlert("adminAlert", "List load नहीं हो सकी: " + error.message, "error");
+        return;
+      }
+
+      renderRows(data || []);
+      totalCount = count || 0;
+      totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+      document.getElementById("pageInfo").textContent = `Page ${currentPage} / ${totalPages} (कुल ${totalCount})`;
+      document.getElementById("prevBtn").disabled = currentPage <= 1;
+      document.getElementById("nextBtn").disabled = currentPage >= totalPages;
+      document.getElementById("paginationBar").style.display = totalCount > 0 ? "flex" : "none";
+    }
+
+    // ---------------------------------------------------------------------
+    // Edit modal
+    // ---------------------------------------------------------------------
+    const EDIT_FIELD_DEFS = [
+      { key: "name", label: "नाम" },
+      { key: "father", label: "पिता का नाम" },
+      { key: "mobile", label: "मोबाइल" },
+      { key: "profession", label: "पेशा" },
+      { key: "designation", label: "पद" },
+      { key: "address", label: "पता", full: true },
+      { key: "city", label: "शहर" },
+      { key: "pincode", label: "पिनकोड" },
+      { key: "native", label: "मूल निवास" },
+      { key: "akna", label: "अकना" },
+      { key: "blood_group", label: "Blood Group" },
+      { key: "bday", label: "जन्मदिन (MM-DD)" },
+      { key: "anni", label: "वर्षगांठ (MM-DD)" },
+      { key: "marital", label: "वैवाहिक स्थिति", select: ["Unmarried", "Married", "Widow", "Widower", "Divorcee"] },
+      { key: "spouse", label: "जीवनसाथी" },
+      { key: "keywords", label: "Keywords (comma-separated)", full: true },
+      { key: "profile.bio", label: "About / Bio", full: true },
+      { key: "profile.hobbies", label: "Hobbies" },
+      { key: "profile.school", label: "School" },
+      { key: "profile.linkedin", label: "LinkedIn" },
+      { key: "profile.twitter", label: "Twitter" },
+      { key: "profile.instagram", label: "Instagram" },
+      { key: "profile.facebook", label: "Facebook" },
+    ];
+    const STATUS_OPTIONS = ["Pending", "Approved", "Rejected", "Inactive"];
+
+    function getFieldValue(row, key) {
+      if (key.startsWith("profile.")) {
+        const sub = key.split(".")[1];
+        return ((row.profile || {})[sub]) || "";
+      }
+      if (key === "keywords") return (row.keywords || []).join(", ");
+      return row[key] || "";
+    }
+
+    function openEditModal(gahoiId, rows) {
+      const row = rows.find((r) => r.gahoi_id === gahoiId);
+      if (!row) return;
+      editingGahoiId = gahoiId;
+      editingSourceRow = row;
+
+      document.getElementById("editModalTitle").textContent = `${row.name} (${row.gahoi_id}) — Edit करें`;
+      gpHideAlert("editAlert");
+
+      const grid = document.getElementById("editFields");
+      grid.innerHTML = "";
+
+      EDIT_FIELD_DEFS.forEach((f) => {
+        const wrap = document.createElement("div");
+        wrap.className = "gp-field" + (f.full ? " gp-field-full" : "");
+        const value = getFieldValue(row, f.key);
+        if (f.select) {
+          wrap.innerHTML = `<label>${f.label}</label>
+            <select data-key="${f.key}">
+              ${f.select.map((o) => `<option value="${o}" ${o === value ? "selected" : ""}>${o}</option>`).join("")}
+            </select>`;
+        } else {
+          wrap.innerHTML = `<label>${f.label}</label><input type="text" data-key="${f.key}" value="${(value + "").replace(/"/g, "&quot;")}">`;
+        }
+        grid.appendChild(wrap);
+      });
+
+      // Status — सिर्फ़ Admin बदल सकता है (Approver को दिख भी नहीं रहा, मौजूदा नियम जैसा)
+      if (myRole === "Admin") {
+        const wrap = document.createElement("div");
+        wrap.className = "gp-field";
+        wrap.innerHTML = `<label>Status</label>
+          <select data-key="status">
+            ${STATUS_OPTIONS.map((o) => `<option value="${o}" ${o === row.status ? "selected" : ""}>${o}</option>`).join("")}
+          </select>`;
+        grid.appendChild(wrap);
+      }
+
+      document.getElementById("editOverlay").classList.add("gp-open");
+    }
+
+    function closeEditModal() {
+      document.getElementById("editOverlay").classList.remove("gp-open");
+      editingGahoiId = null;
+      editingSourceRow = null;
+    }
+
+    async function saveEdit() {
+      if (!editingGahoiId) return;
+      const inputs = document.querySelectorAll("#editFields [data-key]");
+      const fields = {};
+      inputs.forEach((el) => {
+        const key = el.getAttribute("data-key");
+        let value = el.value;
+        if (key === "keywords") {
+          value = value.split(",").map((s) => s.trim()).filter(Boolean);
+        }
+        if (key.startsWith("profile.")) {
+          fields[key.split(".")[1]] = value;
+        } else {
+          fields[key] = value;
+        }
+      });
+
+      const saveBtn = document.getElementById("editSaveBtn");
+      saveBtn.disabled = true;
+      const result = await gpCallFunction("admin-edit-member", { targetGahoiId: editingGahoiId, fields });
+      saveBtn.disabled = false;
+
+      if (!result.success) {
+        gpShowAlert("editAlert", result.message || "Save असफल रहा।", "error");
+        return;
+      }
+      closeEditModal();
+      await runSearch();
+    }
+
+    // ---------------------------------------------------------------------
+    // CSV Export — मौजूदा filters के हिसाब से **सारे** matching rows (सिर्फ़
+    // current page नहीं) — Code.gs के adminData()/CSV-export जैसा
+    // ---------------------------------------------------------------------
+    function csvEscape(val) {
+      const s = (val === null || val === undefined) ? "" : String(val);
+      if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    }
+
+    async function exportCsv() {
+      const exportBtn = document.getElementById("exportBtn");
+      exportBtn.disabled = true;
+      exportBtn.textContent = "Export हो रहा है...";
+      gpHideAlert("adminAlert");
+
+      const CHUNK = 1000;
+      let from = 0;
+      let all = [];
+      // deliberately no .range() upper-bound loop guard beyond totalCount — max एक बार गिना जाता है
+      const { count } = await buildQuery().range(0, 0);
+      const expected = count || 0;
+
+      while (from < expected) {
+        const { data, error } = await buildQuery().range(from, from + CHUNK - 1);
+        if (error) {
+          gpShowAlert("adminAlert", "Export असफल रहा: " + error.message, "error");
+          exportBtn.disabled = false;
+          exportBtn.textContent = "⬇ Export CSV";
+          return;
+        }
+        all = all.concat(data || []);
+        from += CHUNK;
+      }
+
+      const headers = ["GahoiId", "Name", "Father", "Mobile", "Email", "City", "Native", "Akna",
+        "Profession", "Designation", "Status", "Role", "Marital", "Spouse", "BloodGroup", "Tier", "CompletionPercent"];
+      const lines = [headers.join(",")];
+      all.forEach((m) => {
+        lines.push([
+          m.gahoi_id, m.name, m.father, m.mobile, m.email, m.city, m.native, m.akna,
+          m.profession, m.designation, m.status, m.role, m.marital, m.spouse, m.blood_group,
+          m.profile_tier, m.completion_percent,
+        ].map(csvEscape).join(","));
+      });
+
+      const blob = new Blob(["\uFEFF" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gahoi-members-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      exportBtn.disabled = false;
+      exportBtn.textContent = "⬇ Export CSV";
+    }
+
+    document.getElementById("searchBtn").addEventListener("click", () => { currentPage = 1; runSearch(); });
+    document.getElementById("qInput").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") { currentPage = 1; runSearch(); }
+    });
+    document.getElementById("prevBtn").addEventListener("click", () => { if (currentPage > 1) { currentPage--; runSearch(); } });
+    document.getElementById("nextBtn").addEventListener("click", () => { if (currentPage < totalPages) { currentPage++; runSearch(); } });
+    document.getElementById("editCancelBtn").addEventListener("click", closeEditModal);
+    document.getElementById("editSaveBtn").addEventListener("click", saveEdit);
+    document.getElementById("exportBtn").addEventListener("click", exportCsv);
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+
+      myRole = profile.role;
+      if (myRole !== "Admin" && myRole !== "Approver") {
+        window.location.href = "home.html";
+        return;
+      }
+
+      await runSearch();
+    })();
+  </script>
+</body>
+</html>

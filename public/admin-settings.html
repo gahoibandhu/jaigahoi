@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — गहोई पोर्टल Admin</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-admin-wrap { max-width: 780px; margin: 0 auto; padding: 20px; }
+    .gp-admin-nav { display: flex; gap: 16px; margin-bottom: 6px; font-size: .9rem; }
+    .gp-admin-nav a { color: var(--gp-navy); font-weight: 600; text-decoration: none; }
+    .gp-admin-nav a:hover { text-decoration: underline; }
+
+    .gp-settings-group {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow);
+      padding: 20px; margin: 18px 0;
+    }
+    .gp-settings-group h3 { margin-top: 0; color: var(--gp-navy); font-size: 1rem; }
+    .gp-settings-group p.gp-group-note { font-size: .82rem; color: var(--gp-text-muted); margin-top: -6px; margin-bottom: 16px; }
+
+    .gp-setting-row { margin-bottom: 14px; }
+    .gp-setting-row label { display: block; font-weight: 600; font-size: .85rem; color: var(--gp-navy); margin-bottom: 4px; }
+    .gp-setting-row input {
+      width: 100%; padding: 9px 12px; border: 1.5px solid var(--gp-border); border-radius: 8px;
+      font-size: .87rem; font-family: inherit; box-sizing: border-box;
+    }
+    .gp-secret-badge {
+      display: inline-block; font-size: .72rem; font-weight: 700; padding: 2px 9px;
+      border-radius: 10px; margin-left: 8px;
+    }
+    .gp-secret-configured { background: #e8f5ee; color: var(--gp-success); }
+    .gp-secret-not-configured { background: var(--gp-warning-bg); color: var(--gp-gold-dark); }
+
+    .gp-save-bar {
+      position: sticky; bottom: 0; background: #fff; border-top: 1.5px solid var(--gp-border);
+      padding: 14px 20px; margin: 0 -20px; text-align: center;
+    }
+    .gp-save-bar button {
+      padding: 11px 32px; border: none; border-radius: 8px; font-weight: 700;
+      background: var(--gp-gold); color: var(--gp-navy); cursor: pointer; font-size: .92rem;
+    }
+    .gp-save-bar button:disabled { opacity: .5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>गहोई पोर्टल — Admin</h1>
+      <p class="gp-header-sub">Settings</p>
+    </div>
+  </div>
+
+  <div class="gp-admin-wrap">
+    <div class="gp-admin-nav">
+      <a href="home.html">← होम</a>
+      <a href="admin-pending.html">⏳ Pending Approvals</a>
+      <a href="admin-members.html">👥 All Members</a>
+      <a href="admin-features.html">🚦 Feature Flags</a>
+    </div>
+
+    <div id="settingsAlert" class="gp-alert"></div>
+    <div class="gp-loading" id="loadingState">Load हो रहा है...</div>
+
+    <form id="settingsForm" style="display:none">
+      <div class="gp-settings-group">
+        <h3>🏷️ Branding &amp; Support</h3>
+        <div id="brandingFields"></div>
+      </div>
+
+      <div class="gp-settings-group">
+        <h3>☁️ Cloudinary (फ़ोटो अपलोड)</h3>
+        <p class="gp-group-note">Cloud name/upload-preset publishable हैं — safe हैं public होने के लिए। API Key/Secret गुप्त हैं, कभी वापस नहीं दिखेंगे।</p>
+        <div id="cloudinaryFields"></div>
+      </div>
+
+      <div class="gp-settings-group">
+        <h3>💳 Razorpay (Payments)</h3>
+        <div id="razorpayFields"></div>
+      </div>
+
+      <div class="gp-settings-group">
+        <h3>✉️ Resend (Email)</h3>
+        <div id="resendFields"></div>
+      </div>
+
+      <div class="gp-settings-group">
+        <h3>⚙️ अन्य</h3>
+        <div id="otherFields"></div>
+      </div>
+
+      <div class="gp-save-bar">
+        <button type="button" id="saveBtn">सेव करें</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    // हर key किस doc_id में रहती है, किस group में दिखनी है, और उसका label —
+    // settings table doc_id/data shape से मेल खाता हुआ (देखें migration 0012)
+    const DOC_FIELDS = {
+      publicConfig: {
+        portalName: "पोर्टल का नाम", portalUrl: "पोर्टल URL",
+        supportEmail: "Support Email", supportWhatsapp: "Support WhatsApp",
+        cloudinaryCloudName: "Cloud Name", cloudinaryUploadPreset: "Unsigned Upload Preset",
+        razorpayKeyId: "Key ID",
+      },
+      emailConfig: { resendFromEmail: "From Email", resendFromName: "From Name" },
+      appConfig: { mahasabhaFee: "Mahasabha शुल्क (₹)", maxApprovers: "ज़्यादा-से-ज़्यादा Approvers" },
+    };
+    const FIELD_GROUP = {
+      portalName: "brandingFields", portalUrl: "brandingFields",
+      supportEmail: "brandingFields", supportWhatsapp: "brandingFields",
+      cloudinaryCloudName: "cloudinaryFields", cloudinaryUploadPreset: "cloudinaryFields",
+      razorpayKeyId: "razorpayFields",
+      resendFromEmail: "resendFields", resendFromName: "resendFields",
+      mahasabhaFee: "otherFields", maxApprovers: "otherFields",
+    };
+    const SECRET_META = {
+      cloudinaryApiKey: { group: "cloudinaryFields", label: "API Key" },
+      cloudinaryApiSecret: { group: "cloudinaryFields", label: "API Secret" },
+      razorpayKeySecret: { group: "razorpayFields", label: "Key Secret" },
+      resendApiKey: { group: "resendFields", label: "API Key" },
+    };
+
+    function renderSettingRow(container, docId, key, label, value) {
+      const row = document.createElement("div");
+      row.className = "gp-setting-row";
+      const val = (value === undefined || value === null) ? "" : value;
+      row.innerHTML = `
+        <label for="set_${key}">${label}</label>
+        <input type="text" id="set_${key}" data-doc="${docId}" data-setting-key="${key}" value="${String(val).replace(/"/g, "&quot;")}">
+      `;
+      container.appendChild(row);
+    }
+
+    function renderSecretRow(container, key, label, configured) {
+      const row = document.createElement("div");
+      row.className = "gp-setting-row";
+      const badge = configured
+        ? `<span class="gp-secret-badge gp-secret-configured">Configured है</span>`
+        : `<span class="gp-secret-badge gp-secret-not-configured">Set नहीं है</span>`;
+      row.innerHTML = `
+        <label for="secret_${key}">${label} ${badge}</label>
+        <input type="password" id="secret_${key}" data-secret-key="${key}" placeholder="${configured ? "बदलने के लिए नई value डालें" : "यहाँ डालें"}" autocomplete="new-password">
+      `;
+      container.appendChild(row);
+    }
+
+    async function loadSettings() {
+      const result = await gpCallFunction("admin-get-settings", {});
+      if (!result.success) {
+        gpShowAlert("settingsAlert", result.message || "Settings load नहीं हो सकीं।", "error");
+        document.getElementById("loadingState").textContent = "Load नहीं हो सका।";
+        return;
+      }
+
+      // दोबारा load (save के बाद) पर पुराने rows हटाना ज़रूरी — वरना duplicate बन जाएंगे
+      ["brandingFields", "cloudinaryFields", "razorpayFields", "resendFields", "otherFields"]
+        .forEach((id) => { document.getElementById(id).innerHTML = ""; });
+
+      Object.entries(DOC_FIELDS).forEach(([docId, fields]) => {
+        const docData = (result.docs && result.docs[docId]) || {};
+        Object.entries(fields).forEach(([key, label]) => {
+          const groupId = FIELD_GROUP[key] || "otherFields";
+          renderSettingRow(document.getElementById(groupId), docId, key, label, docData[key]);
+        });
+      });
+
+      Object.entries(SECRET_META).forEach(([key, meta]) => {
+        const configured = !!(result.secretsStatus && result.secretsStatus[key]);
+        renderSecretRow(document.getElementById(meta.group), key, meta.label, configured);
+      });
+
+      document.getElementById("loadingState").style.display = "none";
+      document.getElementById("settingsForm").style.display = "block";
+    }
+
+    async function saveSettings() {
+      gpHideAlert("settingsAlert");
+      const saveBtn = document.getElementById("saveBtn");
+      saveBtn.disabled = true;
+      saveBtn.textContent = "सेव हो रहा है...";
+
+      const docs = {};
+      document.querySelectorAll("[data-setting-key]").forEach((el) => {
+        const docId = el.getAttribute("data-doc");
+        const key = el.getAttribute("data-setting-key");
+        let val = el.value;
+        if (val !== "" && !isNaN(Number(val))) val = Number(val);
+        if (!docs[docId]) docs[docId] = {};
+        docs[docId][key] = val;
+      });
+
+      const secrets = {};
+      document.querySelectorAll("[data-secret-key]").forEach((el) => {
+        const key = el.getAttribute("data-secret-key");
+        if (el.value.trim()) secrets[key] = el.value.trim(); // ख़ाली छोड़ी गई तो ना भेजें
+      });
+
+      const result = await gpCallFunction("admin-update-settings", { docs, secrets });
+      saveBtn.disabled = false;
+      saveBtn.textContent = "सेव करें";
+
+      if (!result.success) {
+        gpShowAlert("settingsAlert", result.message || "Save असफल रहा।", "error");
+        return;
+      }
+      gpShowAlert("settingsAlert", "Settings सेव हो गईं।", "success");
+      await loadSettings(); // "Configured" badges ताज़ा दिखाने के लिए दोबारा load — secret inputs अपने-आप खाली शुरू होते हैं
+    }
+
+    document.getElementById("saveBtn").addEventListener("click", saveSettings);
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+
+      if (profile.role !== "Admin") {
+        window.location.href = "home.html";
+        return;
+      }
+
+      await loadSettings();
+    })();
+  </script>
+</body>
+</html>

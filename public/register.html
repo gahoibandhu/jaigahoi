@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registration — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>गहोई पोर्टल</h1>
+      <p class="gp-header-sub">All India Gahoi Vaishya Samaj Community Portal</p>
+    </div>
+  </div>
+
+  <div class="gp-container">
+    <div class="gp-card" id="signupCard">
+      <h2>नया Account बनाएं</h2>
+      <p class="gp-subtitle">पहला कदम — Email/Password या Google से शुरू करें</p>
+
+      <div id="regAlert" class="gp-alert"></div>
+
+      <button type="button" class="gp-btn gp-btn-google" id="googleSignupBtn">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92a8.78 8.78 0 002.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86a5.19 5.19 0 01-4.87-3.6H1.1v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M4.13 10.82a5.4 5.4 0 010-3.64V4.85H1.1a9 9 0 000 8.3l3.03-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58A8.6 8.6 0 009 0 9 9 0 001.1 4.85l3.03 2.33A5.19 5.19 0 019 3.58z"/></svg>
+        Google से जारी रखें
+      </button>
+      <p class="gp-hint" style="text-align:center;margin-top:6px">Google से email अपने-आप verified मानी जाती है — approval जल्दी मिलने का मौका</p>
+
+      <div class="gp-divider">या Email से</div>
+
+      <form id="signupForm">
+        <div class="gp-field">
+          <label for="email">Email</label>
+          <input type="email" id="email" required autocomplete="email">
+        </div>
+        <div class="gp-field">
+          <label for="password">Password</label>
+          <input type="password" id="password" required minlength="6" autocomplete="new-password">
+          <div class="gp-hint">कम से कम 6 characters</div>
+        </div>
+        <button type="submit" class="gp-btn" id="signupSubmitBtn">Account बनाएं</button>
+      </form>
+
+      <p class="gp-footer-link">पहले से account है? <a href="login.html">Login करें</a></p>
+    </div>
+
+    <div class="gp-card" id="checkEmailCard" style="display:none">
+      <h2>📧 Email Check करें</h2>
+      <p class="gp-subtitle">हमने आपको एक confirmation link भेजी है</p>
+      <div class="gp-alert gp-alert-success" style="display:block">
+        <span id="sentToEmail"></span> पर भेजी गई link पर click करें, फिर वापस आकर अपनी profile पूरी करें।
+      </div>
+      <p class="gp-hint">Link ना दिखे तो Spam/Junk folder भी देखें।</p>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    document.getElementById("signupForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("regAlert");
+      const btn = document.getElementById("signupSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "कृपया प्रतीक्षा करें...";
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      const { data, error } = await gpSupabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: window.location.origin + "/auth-callback.html" },
+      });
+
+      if (error) {
+        gpShowAlert("regAlert", error.message.includes("already registered")
+          ? "ये email पहले से registered है — Login करें।"
+          : "Registration शुरू नहीं हो सकी — फिर कोशिश करें।", "error");
+        btn.disabled = false;
+        btn.textContent = "Account बनाएं";
+        return;
+      }
+
+      // कुछ Supabase configs में email-confirmation off होती है — तब session तुरंत मिल जाता है
+      if (data.session) {
+        window.location.href = "complete-profile.html";
+        return;
+      }
+
+      document.getElementById("sentToEmail").textContent = email;
+      document.getElementById("signupCard").style.display = "none";
+      document.getElementById("checkEmailCard").style.display = "block";
+    });
+
+    document.getElementById("googleSignupBtn").addEventListener("click", async () => {
+      gpHideAlert("regAlert");
+      const { error } = await gpSupabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin + "/auth-callback.html" },
+      });
+      if (error) gpShowAlert("regAlert", "Google से शुरू नहीं हो सका — फिर कोशिश करें।", "error");
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>दान सेवा — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    .gp-donate-wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+    .gp-back { font-size: .9rem; color: var(--gp-navy); font-weight: 600; text-decoration: none; display: inline-block; margin-bottom: 10px; }
+
+    .gp-campaign-card {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow);
+      padding: 18px; margin-bottom: 16px; cursor: pointer; border: 2px solid transparent;
+    }
+    .gp-campaign-card.gp-selected { border-color: var(--gp-gold); }
+    .gp-campaign-card img { width: 100%; border-radius: 10px; margin-bottom: 10px; max-height: 160px; object-fit: cover; }
+    .gp-campaign-card h3 { margin: 0 0 6px; color: var(--gp-navy); font-size: 1rem; }
+    .gp-campaign-card p { font-size: .85rem; color: var(--gp-text-muted); margin: 0 0 10px; }
+    .gp-progress-bar { background: var(--gp-bg); border-radius: 8px; height: 8px; overflow: hidden; }
+    .gp-progress-fill { background: var(--gp-gold); height: 100%; }
+    .gp-progress-text { font-size: .78rem; color: var(--gp-text-muted); margin-top: 5px; }
+
+    .gp-donate-form {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow);
+      padding: 20px; margin-top: 20px;
+    }
+    .gp-amount-quick { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+    .gp-amount-quick button {
+      padding: 8px 16px; border: 1.5px solid var(--gp-border); border-radius: 20px; background: #fff;
+      cursor: pointer; font-weight: 600; font-size: .85rem;
+    }
+    .gp-amount-quick button.gp-selected { background: var(--gp-gold); border-color: var(--gp-gold); color: var(--gp-navy); }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>गहोई पोर्टल</h1>
+      <p class="gp-header-sub">दान सेवा</p>
+    </div>
+  </div>
+
+  <div class="gp-donate-wrap">
+    <a class="gp-back" href="home.html">← होम</a>
+    <div id="donateAlert" class="gp-alert"></div>
+    <div class="gp-loading" id="loadingState">Load हो रहा है...</div>
+
+    <div id="campaignsContainer"></div>
+    <div class="gp-empty" id="emptyState" style="display:none">अभी कोई सक्रिय अभियान नहीं है — फिर भी आप सामान्य दान कर सकते हैं नीचे से।</div>
+
+    <div class="gp-donate-form">
+      <h3 style="margin-top:0;color:var(--gp-navy)" id="formTitle">दान राशि चुनें</h3>
+      <div class="gp-amount-quick" id="amountQuick">
+        <button data-amt="501">₹501</button>
+        <button data-amt="1100">₹1,100</button>
+        <button data-amt="2100">₹2,100</button>
+        <button data-amt="5100">₹5,100</button>
+      </div>
+      <div class="gp-field">
+        <label>राशि (₹)</label>
+        <input type="number" id="customAmount" min="10" placeholder="या अपनी राशि लिखें">
+      </div>
+      <div class="gp-field">
+        <label>नाम</label>
+        <input type="text" id="donorName" placeholder="आपका नाम">
+      </div>
+      <div class="gp-field">
+        <label>मोबाइल</label>
+        <input type="text" id="donorMobile" placeholder="10 अंक">
+      </div>
+      <div class="gp-field">
+        <label>Email (रसीद के लिए)</label>
+        <input type="email" id="donorEmail" placeholder="you@example.com">
+      </div>
+      <button class="gp-btn" id="donateBtn" style="margin-top:10px">दान करें</button>
+      <div id="donateOfflineNote" style="display:none; margin-top:10px; font-size:.85rem; color:var(--gp-text-muted)">
+        ℹ️ Online payment फ़िलहाल उपलब्ध नहीं है — कृपया <a href="mailto:gahoi.portal@gmail.com">gahoi.portal@gmail.com</a> पर संपर्क करें।
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let selectedCampaignId = null;
+    let selectedAmount = 0;
+
+    async function loadCampaigns() {
+      const { data, error } = await gpSupabase
+        .from("donation_campaigns")
+        .select("id, title, description, image, target_amount, raised_amount")
+        .eq("status", "Active")
+        .order("created_at", { ascending: false });
+
+      document.getElementById("loadingState").style.display = "none";
+      if (error) { gpShowAlert("donateAlert", "अभियान load नहीं हो सके: " + error.message, "error"); return; }
+
+      const container = document.getElementById("campaignsContainer");
+      container.innerHTML = "";
+      document.getElementById("emptyState").style.display = (data || []).length === 0 ? "block" : "none";
+
+      (data || []).forEach((c) => {
+        const pct = c.target_amount ? Math.min(100, Math.round((c.raised_amount / c.target_amount) * 100)) : 0;
+        const card = document.createElement("div");
+        card.className = "gp-campaign-card";
+        card.dataset.campaignId = c.id;
+        card.innerHTML = `
+          ${c.image ? `<img src="${c.image}">` : ""}
+          <h3>${c.title}</h3>
+          <p>${c.description || ""}</p>
+          ${c.target_amount ? `
+            <div class="gp-progress-bar"><div class="gp-progress-fill" style="width:${pct}%"></div></div>
+            <div class="gp-progress-text">₹${Number(c.raised_amount || 0).toLocaleString("hi-IN")} जमा — लक्ष्य ₹${Number(c.target_amount).toLocaleString("hi-IN")} (${pct}%)</div>
+          ` : ""}
+        `;
+        card.addEventListener("click", () => selectCampaign(c.id, c.title, card));
+        container.appendChild(card);
+      });
+    }
+
+    function selectCampaign(id, title, cardEl) {
+      selectedCampaignId = id;
+      document.querySelectorAll(".gp-campaign-card").forEach((c) => c.classList.remove("gp-selected"));
+      cardEl.classList.add("gp-selected");
+      document.getElementById("formTitle").textContent = `"${title}" के लिए दान करें`;
+    }
+
+    document.querySelectorAll("#amountQuick button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#amountQuick button").forEach((b) => b.classList.remove("gp-selected"));
+        btn.classList.add("gp-selected");
+        selectedAmount = parseInt(btn.dataset.amt, 10);
+        document.getElementById("customAmount").value = selectedAmount;
+      });
+    });
+    document.getElementById("customAmount").addEventListener("input", (e) => {
+      document.querySelectorAll("#amountQuick button").forEach((b) => b.classList.remove("gp-selected"));
+      selectedAmount = parseInt(e.target.value, 10) || 0;
+    });
+
+    async function startDonation() {
+      gpHideAlert("donateAlert");
+      const amount = selectedAmount || parseInt(document.getElementById("customAmount").value, 10) || 0;
+      const donorName = document.getElementById("donorName").value.trim();
+      const donorMobile = document.getElementById("donorMobile").value.trim();
+      const donorEmail = document.getElementById("donorEmail").value.trim();
+
+      if (amount < 10) { gpShowAlert("donateAlert", "कम-से-कम ₹10 की राशि चुनें।", "error"); return; }
+      if (!donorName) { gpShowAlert("donateAlert", "अपना नाम लिखें।", "error"); return; }
+
+      const donateBtn = document.getElementById("donateBtn");
+      donateBtn.disabled = true;
+      donateBtn.textContent = "तैयार हो रहा है...";
+
+      // लॉगिन है तो donor_gahoi_id अपने-आप जुड़ जाएगा (Edge Function requester से) —
+      // ना हो तो भी काम करेगा, अनाम/non-member donor के तौर पर
+      const razorpayKeyId = await gpGetPublicSetting("razorpayKeyId", "");
+      const result = await gpCallFunction("razorpay-create-order", {
+        purpose: "donation",
+        amountPaise: amount * 100,
+        campaignId: selectedCampaignId,
+        donorName, donorMobile, donorEmail,
+      });
+
+      donateBtn.disabled = false;
+      donateBtn.textContent = "दान करें";
+
+      if (!result.success) {
+        gpShowAlert("donateAlert", result.message || "Order नहीं बन सका।", "error");
+        return;
+      }
+
+      const rzp = new Razorpay({
+        key: result.keyId || razorpayKeyId,
+        amount: result.amount,
+        currency: "INR",
+        name: "गहोई पोर्टल — दान सेवा",
+        description: "Daan Seva Contribution",
+        order_id: result.orderId,
+        prefill: { name: donorName, contact: donorMobile, email: donorEmail },
+        theme: { color: "#e8a020" },
+        handler: async function (response) {
+          const verifyResult = await gpCallFunction("razorpay-verify-payment", {
+            purpose: "donation",
+            orderId: response.razorpay_order_id,
+            paymentId: response.razorpay_payment_id,
+            signature: response.razorpay_signature,
+            amountPaise: result.amount,
+          });
+          if (verifyResult.success) {
+            gpShowAlert("donateAlert", "🙏 आपके दान के लिए धन्यवाद! रसीद आपके email पर भेज दी गई है।", "success");
+            loadCampaigns();
+          } else {
+            gpShowAlert("donateAlert", "Payment हुआ पर verify नहीं हो सका — कृपया support से संपर्क करें: " + (verifyResult.message || ""), "error");
+          }
+        },
+      });
+      rzp.open();
+    }
+
+    document.getElementById("donateBtn").addEventListener("click", startDonation);
+
+    (async () => {
+      if (!(await gpGuardFeature("daanSevaEnabled", "Daan Seva"))) return;
+      const donationPaymentOn = await gpIsFeatureEnabled("donationOnlinePaymentEnabled", true);
+      document.getElementById("donateBtn").style.display = donationPaymentOn ? "inline-block" : "none";
+      document.getElementById("donateOfflineNote").style.display = donationPaymentOn ? "none" : "block";
+      // यह page लॉगिन के बिना भी चलता है — पर लॉगिन हो तो नाम/मोबाइल/email अपने-आप भर देते हैं
+      const { data: { session } } = await gpSupabase.auth.getSession();
+      if (session) {
+        const profile = await gpGetMyProfile();
+        if (profile) {
+          document.getElementById("donorName").value = profile.name || "";
+          document.getElementById("donorMobile").value = profile.mobile || "";
+          document.getElementById("donorEmail").value = profile.email || "";
+        }
+      }
+      await loadCampaigns();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gahoi Space — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-space-wrap { max-width: 620px; margin: 0 auto; padding: 16px; }
+    .gp-back { font-size: .9rem; color: var(--gp-navy); font-weight: 600; text-decoration: none; display: inline-block; margin-bottom: 10px; }
+
+    .gp-compose {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow);
+      padding: 16px; margin-bottom: 18px;
+    }
+    .gp-compose textarea {
+      width: 100%; border: 1.5px solid var(--gp-border); border-radius: 10px; padding: 10px 12px;
+      font-family: inherit; font-size: .9rem; resize: vertical; min-height: 70px; box-sizing: border-box;
+    }
+    .gp-compose input[type=text] {
+      width: 100%; margin-top: 8px; border: 1.5px solid var(--gp-border); border-radius: 8px;
+      padding: 8px 12px; font-size: .84rem; box-sizing: border-box;
+    }
+    .gp-compose button { margin-top: 10px; padding: 9px 22px; border: none; border-radius: 8px; background: var(--gp-gold); color: var(--gp-navy); font-weight: 700; cursor: pointer; }
+
+    .gp-post { background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); padding: 16px; margin-bottom: 14px; }
+    .gp-post-header { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .gp-post-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--gp-bg); display: flex; align-items: center; justify-content: center; }
+    .gp-post-name { font-weight: 700; color: var(--gp-navy); font-size: .88rem; }
+    .gp-post-time { font-size: .75rem; color: var(--gp-text-muted); }
+    .gp-post-text { font-size: .9rem; line-height: 1.55; white-space: pre-wrap; }
+    .gp-post-img { max-width: 100%; border-radius: 10px; margin-top: 10px; }
+    .gp-post-actions { display: flex; gap: 18px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--gp-border); }
+    .gp-post-actions button { background: none; border: none; cursor: pointer; font-size: .85rem; color: var(--gp-text-muted); font-weight: 600; }
+    .gp-post-actions button.gp-liked { color: var(--gp-error); }
+
+    .gp-comments { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--gp-border); }
+    .gp-comment { font-size: .82rem; margin-bottom: 8px; }
+    .gp-comment b { color: var(--gp-navy); }
+    .gp-comment-input { display: flex; gap: 8px; margin-top: 8px; }
+    .gp-comment-input input { flex: 1; border: 1.5px solid var(--gp-border); border-radius: 8px; padding: 6px 10px; font-size: .82rem; }
+    .gp-comment-input button { border: none; background: var(--gp-navy); color: #fff; border-radius: 8px; padding: 6px 14px; font-size: .8rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>गहोई पोर्टल</h1>
+      <p class="gp-header-sub">Gahoi Space</p>
+    </div>
+  </div>
+
+  <div class="gp-space-wrap">
+    <a class="gp-back" href="home.html">← होम</a>
+    <div id="spaceAlert" class="gp-alert"></div>
+
+    <div class="gp-compose">
+      <textarea id="postText" placeholder="समाज के साथ क्या साझा करना चाहेंगे?" maxlength="1000"></textarea>
+      <input type="text" id="postImageUrl" placeholder="फ़ोटो का लिंक (ऐच्छिक)">
+      <button id="postBtn">पोस्ट करें</button>
+    </div>
+
+    <div class="gp-loading" id="loadingState">Load हो रहा है...</div>
+    <div id="postsContainer"></div>
+    <div class="gp-empty" id="emptyState" style="display:none">अभी कोई post नहीं — सबसे पहले आप कुछ साझा करें!</div>
+    <div style="text-align:center;margin:16px 0">
+      <button id="loadMoreBtn" class="gp-btn gp-btn-sm" style="display:none">और पोस्ट देखें</button>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myGahoiId = null;
+    let myName = null;
+    let myPhoto = null;
+    const PAGE_SIZE = 15;
+    let offset = 0;
+
+    function timeAgo(iso) {
+      const d = new Date(iso);
+      const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
+      if (diffMin < 1) return "अभी";
+      if (diffMin < 60) return diffMin + " मिनट पहले";
+      if (diffMin < 1440) return Math.floor(diffMin / 60) + " घंटे पहले";
+      return d.toLocaleDateString("hi-IN", { day: "numeric", month: "short" });
+    }
+
+    async function loadPosts(append) {
+      document.getElementById("loadingState").style.display = append ? "none" : "block";
+      const { data: posts, error } = await gpSupabase
+        .from("space_posts")
+        .select("id, author_gahoi_id, text, image_url, liked_by, comment_count, posted_at")
+        .eq("status", "Active")
+        .order("posted_at", { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1);
+
+      document.getElementById("loadingState").style.display = "none";
+      if (error) { gpShowAlert("spaceAlert", "Posts load नहीं हो सके: " + error.message, "error"); return; }
+
+      if (!append) document.getElementById("postsContainer").innerHTML = "";
+      document.getElementById("emptyState").style.display = (!append && posts.length === 0) ? "block" : "none";
+      document.getElementById("loadMoreBtn").style.display = posts.length === PAGE_SIZE ? "block" : "none";
+      offset += posts.length;
+
+      for (const post of posts) {
+        await renderPost(post);
+      }
+    }
+
+    async function renderPost(post) {
+      const { data: author } = await gpSupabase.from("persons").select("name, photo").eq("gahoi_id", post.author_gahoi_id).maybeSingle();
+      const liked = (post.liked_by || []).includes(myGahoiId);
+
+      const el = document.createElement("div");
+      el.className = "gp-post";
+      el.dataset.postId = post.id;
+      el.innerHTML = `
+        <div class="gp-post-header">
+          ${author?.photo ? `<img class="gp-post-photo" src="${author.photo}">` : `<div class="gp-post-photo">👤</div>`}
+          <div>
+            <div class="gp-post-name">${author?.name || post.author_gahoi_id}</div>
+            <div class="gp-post-time">${timeAgo(post.posted_at)}</div>
+          </div>
+        </div>
+        <div class="gp-post-text">${(post.text || "").replace(/</g, "&lt;")}</div>
+        ${post.image_url ? `<img class="gp-post-img" src="${post.image_url}">` : ""}
+        <div class="gp-post-actions">
+          <button class="gp-like-btn ${liked ? "gp-liked" : ""}" data-post-id="${post.id}">❤️ <span class="gp-like-count">${(post.liked_by || []).length}</span></button>
+          <button class="gp-comment-toggle-btn" data-post-id="${post.id}">💬 <span class="gp-comment-count">${post.comment_count || 0}</span></button>
+        </div>
+        <div class="gp-comments" id="comments-${post.id}" style="display:none">
+          <div class="gp-comment-list" id="comment-list-${post.id}"></div>
+          <div class="gp-comment-input">
+            <input type="text" id="comment-input-${post.id}" placeholder="कमेंट लिखें...">
+            <button data-post-id="${post.id}" class="gp-comment-send-btn">भेजें</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("postsContainer").appendChild(el);
+
+      el.querySelector(".gp-like-btn").addEventListener("click", () => toggleLike(post.id));
+      el.querySelector(".gp-comment-toggle-btn").addEventListener("click", () => toggleComments(post.id));
+      el.querySelector(".gp-comment-send-btn").addEventListener("click", () => sendComment(post.id));
+    }
+
+    async function toggleLike(postId) {
+      const { data, error } = await gpSupabase.rpc("toggle_space_like", { p_post_id: postId });
+      if (error) { gpShowAlert("spaceAlert", "Like नहीं हो सका: " + error.message, "error"); return; }
+      const row = data && data[0];
+      if (!row) return;
+      const el = document.querySelector(`.gp-post[data-post-id="${postId}"]`);
+      const btn = el.querySelector(".gp-like-btn");
+      btn.classList.toggle("gp-liked", row.liked);
+      btn.querySelector(".gp-like-count").textContent = row.like_count;
+    }
+
+    async function toggleComments(postId) {
+      const box = document.getElementById(`comments-${postId}`);
+      const isOpen = box.style.display !== "none";
+      box.style.display = isOpen ? "none" : "block";
+      if (!isOpen) await loadComments(postId);
+    }
+
+    async function loadComments(postId) {
+      const { data, error } = await gpSupabase
+        .from("space_comments").select("author_gahoi_id, text, posted_at")
+        .eq("post_id", postId).eq("status", "Active").order("posted_at", { ascending: true });
+      if (error) return;
+      const list = document.getElementById(`comment-list-${postId}`);
+      list.innerHTML = "";
+      for (const c of data) {
+        const { data: author } = await gpSupabase.from("persons").select("name").eq("gahoi_id", c.author_gahoi_id).maybeSingle();
+        const item = document.createElement("div");
+        item.className = "gp-comment";
+        item.innerHTML = `<b>${author?.name || c.author_gahoi_id}:</b> ${c.text.replace(/</g, "&lt;")}`;
+        list.appendChild(item);
+      }
+    }
+
+    async function sendComment(postId) {
+      const input = document.getElementById(`comment-input-${postId}`);
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+      const { error } = await gpSupabase.from("space_comments").insert({ post_id: postId, author_gahoi_id: myGahoiId, text });
+      if (error) { gpShowAlert("spaceAlert", "Comment नहीं भेजा जा सका: " + error.message, "error"); return; }
+      await loadComments(postId);
+      const el = document.querySelector(`.gp-post[data-post-id="${postId}"] .gp-comment-count`);
+      el.textContent = parseInt(el.textContent || "0", 10) + 1;
+    }
+
+    async function submitPost() {
+      const textEl = document.getElementById("postText");
+      const imgEl = document.getElementById("postImageUrl");
+      const text = textEl.value.trim();
+      if (text.length < 3) { gpShowAlert("spaceAlert", "कम-से-कम कुछ शब्द तो लिखें।", "error"); return; }
+
+      const postBtn = document.getElementById("postBtn");
+      postBtn.disabled = true;
+      const { error } = await gpSupabase.from("space_posts").insert({
+        author_gahoi_id: myGahoiId, text, image_url: imgEl.value.trim() || null,
+      });
+      postBtn.disabled = false;
+      if (error) { gpShowAlert("spaceAlert", "Post नहीं हो सका: " + error.message, "error"); return; }
+
+      textEl.value = "";
+      imgEl.value = "";
+      offset = 0;
+      await loadPosts(false);
+    }
+
+    document.getElementById("postBtn").addEventListener("click", submitPost);
+    document.getElementById("loadMoreBtn").addEventListener("click", () => loadPosts(true));
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (!(await gpGuardFeature("spaceEnabled", "Gahoi Space"))) return;
+      myGahoiId = profile.gahoi_id;
+      myName = profile.name;
+      myPhoto = profile.photo;
+
+      await loadPosts(false);
+    })();
+  </script>
+</body>
+</html>

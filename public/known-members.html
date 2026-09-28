@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Known Members — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-wrap { max-width: 700px; margin: 0 auto; padding: 20px; }
+    .gp-toggle-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    .gp-toggle-tabs button {
+      padding: 9px 18px; border-radius: 8px; border: 1.5px solid var(--gp-border);
+      background: #fff; cursor: pointer; font-weight: 700; font-size: .88rem;
+    }
+    .gp-toggle-tabs button.active { background: var(--gp-navy); color: #fff; border-color: var(--gp-navy); }
+    .gp-km-row { display: flex; align-items: center; gap: 12px; background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); padding: 12px 16px; margin-bottom: 10px; }
+    .gp-km-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: var(--gp-bg); flex-shrink: 0; }
+    .gp-km-name { font-weight: 700; color: var(--gp-navy); font-size: .92rem; }
+    .gp-km-meta { font-size: .8rem; color: var(--gp-text-muted); }
+    .gp-km-action { margin-left: auto; padding: 6px 14px; border-radius: 8px; border: 1.5px solid var(--gp-border); background: #fff; cursor: pointer; font-weight: 600; font-size: .8rem; white-space: nowrap; }
+    .gp-km-action.gp-added { color: var(--gp-success); border-color: var(--gp-success); }
+    .gp-km-action.gp-remove { color: var(--gp-error); border-color: var(--gp-error); }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 30px 0; }
+    .gp-count-note { font-size: .82rem; color: var(--gp-text-muted); margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🧑‍🤝‍🧑 Known Members</h1><p class="gp-header-sub">गहोई पोर्टल</p></div>
+  </div>
+
+  <div class="gp-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+    <div id="kmAlert" class="gp-alert"></div>
+
+    <div class="gp-toggle-tabs">
+      <button id="myListTab" class="active">🧑‍🤝‍🧑 मेरी List</button>
+      <button id="searchTab">🔍 नए Members खोजें</button>
+    </div>
+
+    <div id="myListSection">
+      <div class="gp-count-note" id="countNote"></div>
+      <div id="myList"></div>
+    </div>
+
+    <div id="searchSection" style="display:none">
+      <div class="gp-field"><input type="text" id="searchInput" placeholder="नाम, शहर, akna से खोजें..."></div>
+      <div id="searchResults"></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    const KNOWN_LIMIT = 500;
+    let myGahoiId = null;
+    let knownSet = new Set();
+
+    async function loadKnownList() {
+      const { data, error } = await gpSupabase
+        .from("known_members")
+        .select("known_gahoi_id, added_at")
+        .eq("person_gahoi_id", myGahoiId)
+        .order("added_at", { ascending: false });
+
+      if (error) { gpShowAlert("kmAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+
+      knownSet = new Set((data || []).map((r) => r.known_gahoi_id));
+      document.getElementById("countNote").textContent = `${knownSet.size} / ${KNOWN_LIMIT} known members`;
+
+      const listEl = document.getElementById("myList");
+      listEl.innerHTML = "";
+      if (knownSet.size === 0) { listEl.innerHTML = `<div class="gp-empty">अभी कोई known member नहीं जोड़ा — "नए Members खोजें" से शुरू करें।</div>`; return; }
+
+      const ids = [...knownSet];
+      const { data: persons } = await gpSupabase
+        .from("persons")
+        .select("gahoi_id, name, photo, city, akna, profession")
+        .in("gahoi_id", ids)
+        .eq("status", "Approved");
+
+      const byId = {};
+      (persons || []).forEach((p) => { byId[p.gahoi_id] = p; });
+
+      // added_at क्रम में दिखाएं (ऊपर fetch किए order के अनुसार)
+      ids.forEach((gid) => {
+        const p = byId[gid];
+        if (!p) return; // हो सकता है member अब Approved ना हो
+        const row = document.createElement("div");
+        row.className = "gp-km-row";
+        row.innerHTML = `
+          <img class="gp-km-photo" src="${p.photo || ""}" alt="" onerror="this.style.visibility='hidden'">
+          <div>
+            <div class="gp-km-name">${p.name}</div>
+            <div class="gp-km-meta">${p.city || ""} ${p.akna ? "· " + p.akna : ""} ${p.profession ? "· " + p.profession : ""}</div>
+          </div>
+          <button class="gp-km-action gp-remove" data-gid="${gid}">✕ हटाएं</button>
+        `;
+        listEl.appendChild(row);
+      });
+
+      listEl.querySelectorAll(".gp-remove").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const gid = btn.getAttribute("data-gid");
+          const { error } = await gpSupabase.from("known_members")
+            .delete().eq("person_gahoi_id", myGahoiId).eq("known_gahoi_id", gid);
+          if (error) { gpShowAlert("kmAlert", "हटाया नहीं जा सका: " + error.message, "error"); return; }
+          await loadKnownList();
+        });
+      });
+    }
+
+    async function runSearch() {
+      const q = document.getElementById("searchInput").value.trim();
+      const resultsEl = document.getElementById("searchResults");
+      if (!q) { resultsEl.innerHTML = ""; return; }
+
+      const result = await gpCallFunction("directory-search", { q, page: 1 });
+      resultsEl.innerHTML = "";
+      if (!result.success) { gpShowAlert("kmAlert", result.message || "Search नहीं हो सका।", "error"); return; }
+
+      const members = (result.members || []).filter((m) => m.gahoiId !== myGahoiId);
+      if (members.length === 0) { resultsEl.innerHTML = `<div class="gp-empty">कोई member नहीं मिला।</div>`; return; }
+
+      members.forEach((m) => {
+        const isKnown = knownSet.has(m.gahoiId);
+        const row = document.createElement("div");
+        row.className = "gp-km-row";
+        row.innerHTML = `
+          <img class="gp-km-photo" src="${m.photo || ""}" alt="" onerror="this.style.visibility='hidden'">
+          <div>
+            <div class="gp-km-name">${m.name}</div>
+            <div class="gp-km-meta">${m.city || ""} ${m.akna ? "· " + m.akna : ""}</div>
+          </div>
+          <button class="gp-km-action ${isKnown ? "gp-added" : ""}" data-gid="${m.gahoiId}" ${isKnown ? "disabled" : ""}>
+            ${isKnown ? "✓ जोड़ा गया" : "+ Known जोड़ें"}
+          </button>
+        `;
+        resultsEl.appendChild(row);
+      });
+
+      resultsEl.querySelectorAll(".gp-km-action:not(.gp-added)").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const gid = btn.getAttribute("data-gid");
+          if (knownSet.size >= KNOWN_LIMIT) {
+            gpShowAlert("kmAlert", `अधिकतम ${KNOWN_LIMIT} known members की सीमा पूरी हो गई है।`, "error");
+            return;
+          }
+          btn.disabled = true;
+          const { error } = await gpSupabase.from("known_members").insert({ person_gahoi_id: myGahoiId, known_gahoi_id: gid });
+          if (error) { gpShowAlert("kmAlert", "जोड़ा नहीं जा सका: " + error.message, "error"); btn.disabled = false; return; }
+          knownSet.add(gid);
+          btn.textContent = "✓ जोड़ा गया";
+          btn.classList.add("gp-added");
+          document.getElementById("countNote").textContent = `${knownSet.size} / ${KNOWN_LIMIT} known members`;
+        });
+      });
+    }
+
+    document.getElementById("searchInput").addEventListener("keypress", (e) => { if (e.key === "Enter") runSearch(); });
+    document.getElementById("myListTab").addEventListener("click", () => {
+      document.getElementById("myListTab").classList.add("active");
+      document.getElementById("searchTab").classList.remove("active");
+      document.getElementById("myListSection").style.display = "block";
+      document.getElementById("searchSection").style.display = "none";
+      loadKnownList();
+    });
+    document.getElementById("searchTab").addEventListener("click", () => {
+      document.getElementById("searchTab").classList.add("active");
+      document.getElementById("myListTab").classList.remove("active");
+      document.getElementById("searchSection").style.display = "block";
+      document.getElementById("myListSection").style.display = "none";
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("knownMembersEnabled", "Known Members"))) return;
+      myGahoiId = profile.gahoi_id;
+      await loadKnownList();
+    })();
+  </script>
+</body>
+</html>

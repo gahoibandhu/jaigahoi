@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Approval की प्रतीक्षा — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>गहोई पोर्टल</h1>
+      <p class="gp-header-sub">All India Gahoi Vaishya Samaj Community Portal</p>
+    </div>
+  </div>
+
+  <div class="gp-container">
+    <div class="gp-card" style="text-align:center">
+      <h2>⏳ Approval की प्रतीक्षा में</h2>
+      <p class="gp-subtitle">आपकी registration Admin के पास समीक्षा में है</p>
+      <p>Approve होने पर आपको ईमेल से सूचित किया जाएगा (आमतौर पर 24 घंटे के अंदर)।</p>
+      <button class="gp-btn gp-btn-secondary" id="logoutBtn" style="margin-top:20px">Logout करें</button>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status === "Approved") { window.location.href = "home.html"; return; }
+    })();
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await gpSupabase.auth.signOut();
+      window.location.href = "login.html";
+    });
+  </script>
+</body>
+</html>

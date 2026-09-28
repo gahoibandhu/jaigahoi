@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Magazine — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-wrap { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .gp-toggle-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    .gp-toggle-tabs button {
+      padding: 9px 18px; border-radius: 8px; border: 1.5px solid var(--gp-border);
+      background: #fff; cursor: pointer; font-weight: 700; font-size: .88rem;
+    }
+    .gp-toggle-tabs button.active { background: var(--gp-navy); color: #fff; border-color: var(--gp-navy); }
+    .gp-mag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+    .gp-mag-card { background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); overflow: hidden; }
+    .gp-mag-cover { width: 100%; height: 220px; object-fit: cover; background: var(--gp-bg); }
+    .gp-mag-body { padding: 12px 14px; }
+    .gp-mag-title { font-weight: 700; color: var(--gp-navy); font-size: .95rem; }
+    .gp-mag-meta { font-size: .78rem; color: var(--gp-text-muted); margin: 3px 0 8px; }
+    .gp-mag-desc { font-size: .84rem; color: var(--gp-text); margin-bottom: 8px; }
+    .gp-mag-actions { display: flex; justify-content: space-between; align-items: center; }
+    .gp-mag-delete { font-size: .78rem; color: var(--gp-error); background: none; border: none; cursor: pointer; padding: 0; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; grid-column: 1 / -1; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>📰 Magazine</h1><p class="gp-header-sub">गहोई पोर्टल</p></div>
+  </div>
+
+  <div class="gp-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+
+    <div class="gp-toggle-tabs">
+      <button id="browseTab" class="active">📋 सभी अंक</button>
+      <button id="postTab" style="display:none">➕ नया अंक Upload करें</button>
+    </div>
+
+    <div id="magAlert" class="gp-alert"></div>
+
+    <div id="browseSection">
+      <div id="magGrid" class="gp-mag-grid"></div>
+    </div>
+
+    <div id="postSection" style="display:none">
+      <div class="gp-section" style="background:var(--gp-card); border-radius:var(--gp-radius-lg); padding:20px; box-shadow:var(--gp-shadow); max-width:440px">
+        <form id="magForm">
+          <div class="gp-field"><label>शीर्षक *</label><input type="text" id="title" required></div>
+          <div class="gp-field"><label>विवरण</label><input type="text" id="description"></div>
+          <div class="gp-field"><label>Cover Image URL</label><input type="text" id="coverImage"></div>
+          <div class="gp-field"><label>PDF/File URL *</label><input type="text" id="fileUrl" required></div>
+          <div class="gp-field"><label>महीना</label><input type="text" id="month" placeholder="जैसे: जनवरी"></div>
+          <div class="gp-field"><label>वर्ष</label><input type="text" id="year" placeholder="2026"></div>
+          <button type="submit" class="gp-btn" id="magSubmitBtn">Upload करें</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myRole = null;
+    let myGahoiId = null;
+
+    async function loadMagazines() {
+      const { data, error } = await gpSupabase
+        .from("magazines")
+        .select("*")
+        .order("posted_at", { ascending: false });
+
+      const gridEl = document.getElementById("magGrid");
+      gridEl.innerHTML = "";
+      if (error) { gpShowAlert("magAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+      if (!data || data.length === 0) { gridEl.innerHTML = `<div class="gp-empty">अभी कोई अंक upload नहीं हुआ।</div>`; return; }
+
+      data.forEach((m) => {
+        const card = document.createElement("div");
+        card.className = "gp-mag-card";
+        card.innerHTML = `
+          ${m.cover_image ? `<img class="gp-mag-cover" src="${m.cover_image}" alt="">` : ""}
+          <div class="gp-mag-body">
+            <div class="gp-mag-title">${m.title || ""}</div>
+            <div class="gp-mag-meta">${m.month || ""} ${m.year || ""}</div>
+            <div class="gp-mag-desc">${m.description || ""}</div>
+            <div class="gp-mag-actions">
+              ${m.file_url ? `<a href="${m.file_url}" target="_blank" rel="noopener" class="gp-btn gp-btn-sm">📥 पढ़ें</a>` : "<span></span>"}
+              ${myRole === "Admin" ? `<button class="gp-mag-delete" data-id="${m.id}">🗑 हटाएं</button>` : ""}
+            </div>
+          </div>
+        `;
+        gridEl.appendChild(card);
+      });
+
+      gridEl.querySelectorAll(".gp-mag-delete").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("क्या आप वाकई इस अंक को हटाना चाहते हैं?")) return;
+          // magazines में soft-delete column नहीं है — hard delete, magazines_write_admin (is_admin()) से gated
+          const { error } = await gpSupabase.from("magazines").delete().eq("id", btn.getAttribute("data-id"));
+          if (error) { gpShowAlert("magAlert", "हटाया नहीं जा सका: " + error.message, "error"); return; }
+          loadMagazines();
+        });
+      });
+    }
+
+    document.getElementById("browseTab").addEventListener("click", () => {
+      document.getElementById("browseTab").classList.add("active");
+      document.getElementById("postTab").classList.remove("active");
+      document.getElementById("browseSection").style.display = "block";
+      document.getElementById("postSection").style.display = "none";
+    });
+    document.getElementById("postTab").addEventListener("click", () => {
+      document.getElementById("postTab").classList.add("active");
+      document.getElementById("browseTab").classList.remove("active");
+      document.getElementById("postSection").style.display = "block";
+      document.getElementById("browseSection").style.display = "none";
+    });
+
+    document.getElementById("magForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("magAlert");
+      const btn = document.getElementById("magSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "Upload हो रहा है...";
+
+      const { error } = await gpSupabase.from("magazines").insert({
+        title: document.getElementById("title").value.trim(),
+        description: document.getElementById("description").value.trim(),
+        cover_image: document.getElementById("coverImage").value.trim(),
+        file_url: document.getElementById("fileUrl").value.trim(),
+        month: document.getElementById("month").value.trim(),
+        year: document.getElementById("year").value.trim(),
+        posted_by: myGahoiId,
+      });
+
+      btn.disabled = false;
+      btn.textContent = "Upload करें";
+
+      if (error) { gpShowAlert("magAlert", "Upload नहीं हो सका: " + error.message, "error"); return; }
+      document.getElementById("magForm").reset();
+      document.getElementById("browseTab").click();
+      loadMagazines();
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("magazinesEnabled", "Magazine"))) return;
+      myRole = profile.role;
+      myGahoiId = profile.gahoi_id;
+      if (myRole === "Admin") document.getElementById("postTab").style.display = "inline-block";
+      await loadMagazines();
+    })();
+  </script>
+</body>
+</html>

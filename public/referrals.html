@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Referrals — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-wrap { max-width: 640px; margin: 0 auto; padding: 20px; }
+    .gp-ref-link-box {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow);
+      padding: 20px; margin-bottom: 18px; text-align: center;
+    }
+    .gp-ref-link { display: flex; gap: 8px; margin-top: 12px; }
+    .gp-ref-link input { flex: 1; padding: 10px 12px; border: 1.5px solid var(--gp-border); border-radius: 8px; font-size: .85rem; background: var(--gp-bg); }
+    .gp-stats-row { display: flex; gap: 12px; margin-bottom: 18px; }
+    .gp-stat-box { flex: 1; background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); padding: 16px; text-align: center; }
+    .gp-stat-num { font-size: 1.6rem; font-weight: 800; color: var(--gp-navy); }
+    .gp-stat-label { font-size: .78rem; color: var(--gp-text-muted); margin-top: 2px; }
+    .gp-ref-list-title { font-weight: 700; color: var(--gp-navy); margin: 18px 0 8px; }
+    .gp-ref-row { display: flex; align-items: center; gap: 10px; background: var(--gp-card); border-radius: var(--gp-radius); padding: 10px 14px; box-shadow: var(--gp-shadow); margin-bottom: 8px; }
+    .gp-ref-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--gp-bg); flex-shrink: 0; }
+    .gp-ref-name { font-weight: 600; color: var(--gp-navy); font-size: .9rem; }
+    .gp-ref-meta { font-size: .78rem; color: var(--gp-text-muted); }
+    .gp-status-badge { margin-left: auto; padding: 3px 10px; border-radius: 14px; font-size: .74rem; font-weight: 700; }
+    .gp-status-Approved { background: #e8f5ee; color: var(--gp-success); }
+    .gp-status-Pending { background: var(--gp-warning-bg); color: var(--gp-gold-dark); }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 20px 0; font-size: .88rem; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🤝 Referrals</h1><p class="gp-header-sub">गहोई पोर्टल</p></div>
+  </div>
+
+  <div class="gp-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+    <div id="refAlert" class="gp-alert"></div>
+
+    <div class="gp-ref-link-box">
+      <div style="color:var(--gp-text-muted);font-size:.88rem">अपना referral link शेयर करें — इससे join करने वाला हर सदस्य यहाँ नीचे दिखेगा</div>
+      <div class="gp-ref-link">
+        <input type="text" id="refLinkInput" readonly>
+        <button class="gp-btn gp-btn-sm" id="copyBtn">📋 Copy</button>
+      </div>
+    </div>
+
+    <div class="gp-stats-row">
+      <div class="gp-stat-box"><div class="gp-stat-num" id="totalCount">—</div><div class="gp-stat-label">कुल Referred</div></div>
+      <div class="gp-stat-box"><div class="gp-stat-num" id="joinedCount">—</div><div class="gp-stat-label">✅ Join हुए</div></div>
+      <div class="gp-stat-box"><div class="gp-stat-num" id="pendingCount">—</div><div class="gp-stat-label">⏳ Pending</div></div>
+    </div>
+
+    <div id="refListsBox"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    function fmtDate(d) {
+      if (!d) return "";
+      try { return new Date(d).toLocaleDateString("hi-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return d; }
+    }
+
+    function renderRow(m) {
+      return `
+        <div class="gp-ref-row">
+          <img class="gp-ref-photo" src="${m.photo || ""}" alt="" onerror="this.style.visibility='hidden'">
+          <div>
+            <div class="gp-ref-name">${m.name || m.gahoiId}</div>
+            <div class="gp-ref-meta">${m.city || ""} ${m.joinedAt ? "· " + fmtDate(m.joinedAt) : ""}</div>
+          </div>
+          <span class="gp-status-badge gp-status-${m.status}">${m.status === "Approved" ? "Joined" : "Pending"}</span>
+        </div>
+      `;
+    }
+
+    async function loadStats() {
+      const result = await gpCallFunction("referral-stats", {});
+      if (!result.success) { gpShowAlert("refAlert", result.message || "Load नहीं हो सका।", "error"); return; }
+
+      document.getElementById("refLinkInput").value = window.location.origin + "/register.html?ref=" + result.myGahoiId;
+      document.getElementById("totalCount").textContent = result.total;
+      document.getElementById("joinedCount").textContent = result.joinedCount;
+      document.getElementById("pendingCount").textContent = result.pendingCount;
+
+      const box = document.getElementById("refListsBox");
+      if (result.total === 0) {
+        box.innerHTML = `<div class="gp-empty">अभी तक किसी ने आपका link इस्तेमाल नहीं किया — शेयर करना शुरू करें!</div>`;
+        return;
+      }
+      let html = "";
+      if (result.pending.length) {
+        html += `<div class="gp-ref-list-title">⏳ Pending (${result.pending.length})</div>` + result.pending.map(renderRow).join("");
+      }
+      if (result.joined.length) {
+        html += `<div class="gp-ref-list-title">✅ Joined (${result.joined.length})</div>` + result.joined.map(renderRow).join("");
+      }
+      box.innerHTML = html;
+    }
+
+    document.getElementById("copyBtn").addEventListener("click", async () => {
+      const input = document.getElementById("refLinkInput");
+      try {
+        await navigator.clipboard.writeText(input.value);
+        gpShowAlert("refAlert", "✅ Link copy हो गया!", "success");
+      } catch (e) {
+        input.select();
+        document.execCommand("copy");
+        gpShowAlert("refAlert", "✅ Link copy हो गया!", "success");
+      }
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("referralsEnabled", "Referrals"))) return;
+      await loadStats();
+    })();
+  </script>
+</body>
+</html>

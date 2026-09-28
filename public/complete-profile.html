@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile पूरी करें — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>गहोई पोर्टल</h1>
+      <p class="gp-header-sub">All India Gahoi Vaishya Samaj Community Portal</p>
+    </div>
+  </div>
+
+  <div class="gp-container">
+    <div class="gp-card">
+      <h2>अपनी Profile पूरी करें</h2>
+      <p class="gp-subtitle">बस एक कदम और — ये जानकारी भरें</p>
+
+      <div id="profileAlert" class="gp-alert"></div>
+
+      <form id="profileForm">
+        <div class="gp-field">
+          <label for="name">पूरा नाम *</label>
+          <input type="text" id="name" required>
+        </div>
+        <div class="gp-field">
+          <label for="father">पिता/पति का नाम *</label>
+          <input type="text" id="father" required>
+        </div>
+        <div class="gp-field">
+          <label for="mobile">मोबाइल नंबर *</label>
+          <input type="tel" id="mobile" pattern="[6-9][0-9]{9}" maxlength="10" required>
+          <div class="gp-hint">10 अंक, 6-9 से शुरू — यही आपका शुरुआती Password भी होगा</div>
+        </div>
+        <div class="gp-field">
+          <label for="city">वर्तमान शहर *</label>
+          <input type="text" id="city" required>
+        </div>
+        <div class="gp-field">
+          <label for="native">मूल निवास *</label>
+          <input type="text" id="native" required>
+        </div>
+        <div class="gp-field">
+          <label for="akna">आपकी अकना (कुलनाम) *</label>
+          <input type="text" id="akna" list="aknaOptions" required autocomplete="off">
+          <datalist id="aknaOptions"></datalist>
+          <div class="gp-hint">सूची में ना मिले तो भी टाइप करें — Admin review करेंगे</div>
+        </div>
+        <button type="submit" class="gp-btn" id="profileSubmitBtn">Registration पूरी करें</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    // ── Login-guard: बिना session यहाँ नहीं आ सकते ──────────────────────────────
+    let currentSession = null;
+    (async () => {
+      currentSession = await gpRequireLogin("register.html");
+      if (!currentSession) return;
+
+      // अगर पहले से persons-row है तो यहाँ आने की ज़रूरत नहीं
+      const existing = await gpGetMyProfile();
+      if (existing) {
+        window.location.href = existing.status === "Pending" ? "pending-approval.html" : "home.html";
+        return;
+      }
+
+      // Akna autocomplete list भरना (akna_list की RLS सबको read करने देती है)
+      const { data: aknas } = await gpSupabase.from("akna_list").select("hindi").eq("active", true).order("hindi");
+      const datalist = document.getElementById("aknaOptions");
+      (aknas || []).forEach((a) => {
+        const opt = document.createElement("option");
+        opt.value = a.hindi;
+        datalist.appendChild(opt);
+      });
+    })();
+
+    document.getElementById("profileForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("profileAlert");
+      const btn = document.getElementById("profileSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "कृपया प्रतीक्षा करें...";
+
+      const payload = {
+        name: document.getElementById("name").value.trim(),
+        father: document.getElementById("father").value.trim(),
+        mobile: document.getElementById("mobile").value.trim(),
+        city: document.getElementById("city").value.trim(),
+        native: document.getElementById("native").value.trim(),
+        akna: document.getElementById("akna").value.trim(),
+        referrerGahoiId: localStorage.getItem("gp_referrer_gahoi_id") || "",
+      };
+
+      const result = await gpCallFunction("register", payload);
+
+      if (!result.success) {
+        gpShowAlert("profileAlert", result.message || "Registration पूरी नहीं हो सकी।", "error");
+        btn.disabled = false;
+        btn.textContent = "Registration पूरी करें";
+        return;
+      }
+
+      localStorage.removeItem("gp_referrer_gahoi_id");
+      window.location.href = result.autoApproved ? "home.html" : "pending-approval.html";
+    });
+  </script>
+</body>
+</html>

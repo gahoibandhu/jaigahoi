@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mahasabha Membership — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <style>
+    .gp-wrap { max-width: 640px; margin: 0 auto; padding: 20px; }
+    .gp-status-card {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 22px;
+      box-shadow: var(--gp-shadow); margin-bottom: 18px;
+    }
+    .gp-status-badge {
+      display: inline-block; padding: 4px 14px; border-radius: 20px; font-weight: 700; font-size: .82rem;
+    }
+    .gp-status-Pending { background: var(--gp-warning-bg); color: var(--gp-gold-dark); }
+    .gp-status-Approved { background: #e8f5ee; color: var(--gp-success); }
+    .gp-status-Rejected { background: #fdecea; color: var(--gp-error); }
+    .gp-steps { list-style: none; padding: 0; margin: 18px 0 0; }
+    .gp-steps li { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: .9rem; color: var(--gp-text-muted); }
+    .gp-steps li.gp-done { color: var(--gp-success); font-weight: 600; }
+    .gp-steps .gp-step-icon { width: 22px; text-align: center; }
+    .gp-fee-note { background: var(--gp-warning-bg); border: 1px solid var(--gp-warning-border); border-radius: var(--gp-radius); padding: 12px 16px; font-size: .88rem; margin-bottom: 18px; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🏛 Mahasabha Membership</h1><p class="gp-header-sub">गहोई पोर्टल</p></div>
+  </div>
+
+  <div class="gp-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+    <div id="msAlert" class="gp-alert"></div>
+
+    <div id="statusSection" style="display:none">
+      <div class="gp-status-card">
+        <h3 style="margin-top:0;color:var(--gp-navy)">आपकी Membership Status</h3>
+        <span id="statusBadge" class="gp-status-badge">...</span>
+        <div id="rejectedReasonBox" style="display:none; margin-top:10px; color:var(--gp-error); font-size:.88rem;"></div>
+        <ul class="gp-steps">
+          <li id="stepApplied"><span class="gp-step-icon">📝</span> Application जमा हुई</li>
+          <li id="stepPaid"><span class="gp-step-icon">💳</span> Payment / Approval</li>
+          <li id="stepReceived"><span class="gp-step-icon">💰</span> Payment प्राप्त (Panchayat द्वारा)</li>
+          <li id="stepForwarded"><span class="gp-step-icon">📤</span> Payment आगे भेजी गई</li>
+          <li id="stepFormSubmitted"><span class="gp-step-icon">📄</span> Form जमा हुआ</li>
+        </ul>
+        <div id="payNowBox" style="display:none; margin-top:16px">
+          <p style="font-size:.88rem;color:var(--gp-text-muted)">आपकी application जमा हो गई है — नीचे से online payment कर सकते हैं (offline भी collect हो सकती है, आपके Panchayat के ज़रिए)।</p>
+          <button class="gp-btn" id="payNowBtn">₹<span id="payNowAmt">—</span> अभी Pay करें</button>
+        </div>
+        <div id="payOfflineNote" class="gp-fee-note" style="display:none; margin-top:16px">
+          ℹ️ Online payment फ़िलहाल उपलब्ध नहीं है — कृपया अपने Panchayat प्रतिनिधि से offline भुगतान के बारे में संपर्क करें।
+        </div>
+        <div id="reapplyBox" style="display:none; margin-top:16px">
+          <button class="gp-btn gp-btn-secondary" id="reapplyBtn">नए सिरे से Apply करें</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="formSection" style="display:none">
+      <div class="gp-fee-note">
+        💰 Membership शुल्क: ₹<span id="feeDisplay">—</span> (शुल्क बदल सकती है — अंतिम राशि payment के वक़्त दिखेगी)
+      </div>
+      <div class="gp-status-card">
+        <form id="msForm">
+          <div class="gp-field"><label>Panchayat</label><input type="text" id="panchayat"></div>
+          <div class="gp-field"><label>क्षेत्रीय Panchayat</label><input type="text" id="kshetra"></div>
+          <div class="gp-field"><label>पिता/पति का नाम *</label><input type="text" id="fatherOrHusband" required></div>
+          <div class="gp-field"><label>व्यवसाय</label><input type="text" id="vyavsay"></div>
+          <div class="gp-field"><label>शिक्षा</label><input type="text" id="shiksha"></div>
+          <div class="gp-field"><label>जन्म तिथि (DOB)</label><input type="date" id="dob"></div>
+          <button type="submit" class="gp-btn" id="msSubmitBtn">Application जमा करें</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myProfile = null;
+    let currentApp = null; // सबसे latest panchayat_memberships row (level='Mahasabha')
+    let mahasabhaFee = 100;
+    let onlinePaymentEnabled = true;
+
+    function setStep(id, done) {
+      const el = document.getElementById(id);
+      el.classList.toggle("gp-done", !!done);
+      if (done) el.querySelector(".gp-step-icon").textContent = "✅";
+    }
+
+    function renderStatus() {
+      document.getElementById("statusSection").style.display = "block";
+      document.getElementById("formSection").style.display = "none";
+
+      const badge = document.getElementById("statusBadge");
+      badge.textContent = currentApp.status === "Approved" ? "✅ Approved" : currentApp.status === "Rejected" ? "❌ Rejected" : "⏳ Pending";
+      badge.className = "gp-status-badge gp-status-" + currentApp.status;
+
+      setStep("stepApplied", true);
+      setStep("stepPaid", currentApp.status === "Approved");
+      setStep("stepReceived", currentApp.payment_received);
+      setStep("stepForwarded", currentApp.payment_forwarded);
+      setStep("stepFormSubmitted", currentApp.form_submitted);
+
+      const rBox = document.getElementById("rejectedReasonBox");
+      const reason = (currentApp.form_data || {}).rejectedReason;
+      if (currentApp.status === "Rejected" && reason) {
+        rBox.textContent = "कारण: " + reason;
+        rBox.style.display = "block";
+      } else {
+        rBox.style.display = "none";
+      }
+
+      document.getElementById("payNowBox").style.display = (currentApp.status === "Pending" && onlinePaymentEnabled) ? "block" : "none";
+      document.getElementById("payOfflineNote").style.display = (currentApp.status === "Pending" && !onlinePaymentEnabled) ? "block" : "none";
+      document.getElementById("payNowAmt").textContent = currentApp.fee || mahasabhaFee;
+      document.getElementById("reapplyBox").style.display = currentApp.status === "Rejected" ? "block" : "none";
+    }
+
+    async function loadStatus() {
+      const { data, error } = await gpSupabase
+        .from("panchayat_memberships")
+        .select("*")
+        .eq("member_gahoi_id", myProfile.gahoi_id)
+        .eq("level", "Mahasabha")
+        .order("applied_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) { gpShowAlert("msAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+
+      currentApp = data;
+      if (!currentApp) {
+        document.getElementById("statusSection").style.display = "none";
+        document.getElementById("formSection").style.display = "block";
+      } else {
+        renderStatus();
+      }
+    }
+
+    async function payForApplication(app) {
+      gpHideAlert("msAlert");
+      const payBtn = document.getElementById("payNowBtn");
+      payBtn.disabled = true;
+      payBtn.textContent = "तैयार हो रहा है...";
+
+      const razorpayKeyId = await gpGetPublicSetting("razorpayKeyId", "");
+      const amountPaise = Math.round((app.fee || mahasabhaFee) * 100);
+      const result = await gpCallFunction("razorpay-create-order", {
+        purpose: "mahasabhaMembership",
+        referenceId: app.id,
+        amountPaise,
+      });
+
+      payBtn.disabled = false;
+      payBtn.textContent = `₹${app.fee || mahasabhaFee} अभी Pay करें`;
+
+      if (!result.success) {
+        gpShowAlert("msAlert", result.message || "Payment शुरू नहीं हो सका — शायद Razorpay अभी configure नहीं है, कृपया अपने Panchayat से offline भुगतान के बारे में पूछें।", "error");
+        return;
+      }
+
+      const rzp = new Razorpay({
+        key: result.keyId || razorpayKeyId,
+        amount: result.amount,
+        currency: "INR",
+        name: "गहोई पोर्टल — Mahasabha Membership",
+        description: "Mahasabha Membership Fee",
+        order_id: result.orderId,
+        prefill: { name: myProfile.name, contact: myProfile.mobile, email: myProfile.email },
+        theme: { color: "#e8a020" },
+        handler: async function (response) {
+          const verifyResult = await gpCallFunction("razorpay-verify-payment", {
+            purpose: "mahasabhaMembership",
+            referenceId: app.id,
+            orderId: response.razorpay_order_id,
+            paymentId: response.razorpay_payment_id,
+            signature: response.razorpay_signature,
+            amountPaise,
+          });
+          if (verifyResult.success) {
+            gpShowAlert("msAlert", "🙏 Payment सफल! आपकी membership Approved हो गई है।", "success");
+            await loadStatus();
+          } else {
+            gpShowAlert("msAlert", "Payment हुआ पर verify नहीं हो सका — कृपया support से संपर्क करें: " + (verifyResult.message || ""), "error");
+          }
+        },
+      });
+      rzp.open();
+    }
+
+    document.getElementById("payNowBtn").addEventListener("click", () => { if (currentApp) payForApplication(currentApp); });
+    document.getElementById("reapplyBtn").addEventListener("click", () => {
+      document.getElementById("statusSection").style.display = "none";
+      document.getElementById("formSection").style.display = "block";
+    });
+
+    document.getElementById("msForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("msAlert");
+      const btn = document.getElementById("msSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "जमा हो रहा है...";
+
+      const { data, error } = await gpSupabase.from("panchayat_memberships").insert({
+        member_gahoi_id: myProfile.gahoi_id,
+        level: "Mahasabha",
+        status: "Pending",
+        fee: mahasabhaFee,
+        form_data: {
+          panchayat: document.getElementById("panchayat").value.trim(),
+          kshetra: document.getElementById("kshetra").value.trim(),
+          fatherOrHusband: document.getElementById("fatherOrHusband").value.trim(),
+          vyavsay: document.getElementById("vyavsay").value.trim(),
+          shiksha: document.getElementById("shiksha").value.trim(),
+          dob: document.getElementById("dob").value,
+        },
+      }).select("*").single();
+
+      btn.disabled = false;
+      btn.textContent = "Application जमा करें";
+
+      if (error) { gpShowAlert("msAlert", "जमा नहीं हो सका: " + error.message, "error"); return; }
+      currentApp = data;
+      renderStatus();
+      gpShowAlert("msAlert", "✅ Application जमा हो गई है। अब आप चाहें तो नीचे से online payment कर सकते हैं।", "success");
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("mahasabhaEnabled", "Mahasabha Membership"))) return;
+      myProfile = profile;
+      // appConfig अब migration 0014 के बाद publicly readable है (सिर्फ़ 'secrets' छोड़कर)
+      mahasabhaFee = Number(await gpGetSetting("appConfig", "mahasabhaFee", 100)) || 100;
+      onlinePaymentEnabled = await gpIsFeatureEnabled("mahasabhaOnlinePaymentEnabled", true);
+      document.getElementById("feeDisplay").textContent = mahasabhaFee;
+      await loadStatus();
+    })();
+  </script>
+</body>
+</html>

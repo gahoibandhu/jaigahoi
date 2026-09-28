@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messages — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-msg-wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
+    .gp-msg-back { font-size: .9rem; color: var(--gp-navy); font-weight: 600; text-decoration: none; display: inline-block; margin-bottom: 10px; }
+
+    .gp-conv-list { background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); overflow: hidden; }
+    .gp-conv-item {
+      display: flex; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--gp-border);
+      cursor: pointer; align-items: center;
+    }
+    .gp-conv-item:last-child { border-bottom: none; }
+    .gp-conv-item:hover { background: var(--gp-bg); }
+    .gp-conv-photo { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; background: var(--gp-bg); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
+    .gp-conv-name { font-weight: 700; color: var(--gp-navy); font-size: .92rem; }
+    .gp-conv-preview { font-size: .82rem; color: var(--gp-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+    .gp-conv-unread { background: var(--gp-gold); color: var(--gp-navy); border-radius: 10px; font-size: .72rem; font-weight: 700; padding: 2px 8px; margin-left: auto; }
+
+    .gp-thread { display: none; flex-direction: column; height: 70vh; }
+    .gp-thread.gp-open { display: flex; }
+    .gp-thread-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--gp-card); border-radius: var(--gp-radius-lg) var(--gp-radius-lg) 0 0; box-shadow: var(--gp-shadow); }
+    .gp-thread-body { flex: 1; overflow-y: auto; background: var(--gp-bg); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .gp-bubble { max-width: 75%; padding: 9px 13px; border-radius: 14px; font-size: .88rem; line-height: 1.4; }
+    .gp-bubble-me { align-self: flex-end; background: var(--gp-gold); color: var(--gp-navy); border-bottom-right-radius: 3px; }
+    .gp-bubble-them { align-self: flex-start; background: #fff; border: 1px solid var(--gp-border); border-bottom-left-radius: 3px; }
+    .gp-bubble-time { font-size: .68rem; opacity: .65; margin-top: 3px; }
+    .gp-thread-input { display: flex; gap: 8px; padding: 12px; background: var(--gp-card); border-radius: 0 0 var(--gp-radius-lg) var(--gp-radius-lg); box-shadow: var(--gp-shadow); }
+    .gp-thread-input textarea {
+      flex: 1; resize: none; border: 1.5px solid var(--gp-border); border-radius: 10px; padding: 9px 12px;
+      font-family: inherit; font-size: .88rem; max-height: 90px;
+    }
+    .gp-thread-input button { padding: 0 18px; border: none; border-radius: 10px; background: var(--gp-gold); color: var(--gp-navy); font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>गहोई पोर्टल</h1>
+      <p class="gp-header-sub">Messages</p>
+    </div>
+  </div>
+
+  <div class="gp-msg-wrap">
+    <a class="gp-msg-back" href="home.html">← होम</a>
+    <div id="msgAlert" class="gp-alert"></div>
+    <div class="gp-loading" id="loadingState">Load हो रहा है...</div>
+
+    <div id="convListView">
+      <div class="gp-conv-list" id="convList"></div>
+      <div class="gp-empty" id="convEmpty" style="display:none">अभी कोई conversation नहीं — Directory से किसी को "Message" करके शुरू करें</div>
+    </div>
+
+    <div class="gp-thread" id="threadView">
+      <div class="gp-thread-header">
+        <a href="javascript:void(0)" id="threadBackBtn" style="font-size:1.2rem;text-decoration:none">←</a>
+        <div class="gp-conv-photo" id="threadPhoto">👤</div>
+        <div class="gp-conv-name" id="threadName"></div>
+      </div>
+      <div class="gp-thread-body" id="threadBody"></div>
+      <div class="gp-thread-input">
+        <textarea id="msgInput" rows="1" placeholder="अपना message लिखें..."></textarea>
+        <button id="sendBtn">भेजें</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myGahoiId = null;
+    let currentConvId = null;
+    let currentOtherId = null;
+    let realtimeChannel = null;
+
+    function timeAgo(iso) {
+      const d = new Date(iso);
+      return d.toLocaleString("hi-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    }
+
+    async function loadConversations() {
+      document.getElementById("loadingState").style.display = "block";
+      const { data, error } = await gpSupabase
+        .from("conversations")
+        .select("id, participant_a, participant_b, last_message_at")
+        .or(`participant_a.eq.${myGahoiId},participant_b.eq.${myGahoiId}`)
+        .order("last_message_at", { ascending: false, nullsFirst: false });
+
+      document.getElementById("loadingState").style.display = "none";
+      if (error) {
+        gpShowAlert("msgAlert", "Conversations load नहीं हो सकीं: " + error.message, "error");
+        return;
+      }
+
+      const list = document.getElementById("convList");
+      list.innerHTML = "";
+      document.getElementById("convEmpty").style.display = (data || []).length === 0 ? "block" : "none";
+
+      for (const conv of data || []) {
+        const otherId = conv.participant_a === myGahoiId ? conv.participant_b : conv.participant_a;
+        const { data: person } = await gpSupabase
+          .from("persons").select("name, photo").eq("gahoi_id", otherId).maybeSingle();
+
+        const { count: unread } = await gpSupabase
+          .from("messages").select("id", { count: "exact", head: true })
+          .eq("conversation_id", conv.id).eq("to_gahoi_id", myGahoiId).eq("read", false);
+
+        const { data: lastMsgRows } = await gpSupabase
+          .from("messages").select("body, sent_at").eq("conversation_id", conv.id)
+          .order("sent_at", { ascending: false }).limit(1);
+        const lastMsg = (lastMsgRows && lastMsgRows[0]) || null;
+
+        const item = document.createElement("div");
+        item.className = "gp-conv-item";
+        item.innerHTML = `
+          ${person?.photo ? `<img class="gp-conv-photo" src="${person.photo}">` : `<div class="gp-conv-photo">👤</div>`}
+          <div style="flex:1;min-width:0">
+            <div class="gp-conv-name">${person?.name || otherId}</div>
+            <div class="gp-conv-preview">${lastMsg ? lastMsg.body : "..."}</div>
+          </div>
+          ${unread > 0 ? `<span class="gp-conv-unread">${unread}</span>` : ""}
+        `;
+        item.addEventListener("click", () => openThread(otherId, person?.name || otherId, person?.photo || ""));
+        list.appendChild(item);
+      }
+    }
+
+    async function openThread(otherId, name, photo) {
+      currentOtherId = otherId;
+      document.getElementById("convListView").style.display = "none";
+      document.getElementById("threadView").classList.add("gp-open");
+      document.getElementById("threadName").textContent = name;
+      document.getElementById("threadPhoto").innerHTML = photo ? `<img src="${photo}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : "👤";
+
+      const { data: convId, error: convErr } = await gpSupabase.rpc("get_or_create_conversation", { p_other_gahoi_id: otherId });
+      if (convErr) {
+        gpShowAlert("msgAlert", "Conversation शुरू नहीं हो सकी: " + convErr.message, "error");
+        return;
+      }
+      currentConvId = convId;
+      await loadMessages();
+      await markRead();
+      subscribeRealtime();
+    }
+
+    async function loadMessages() {
+      const { data, error } = await gpSupabase
+        .from("messages").select("id, from_gahoi_id, body, sent_at")
+        .eq("conversation_id", currentConvId).eq("deleted", false)
+        .order("sent_at", { ascending: true });
+      if (error) { gpShowAlert("msgAlert", "Messages load नहीं हो सके: " + error.message, "error"); return; }
+      renderMessages(data || []);
+    }
+
+    function renderMessages(msgs) {
+      const body = document.getElementById("threadBody");
+      body.innerHTML = "";
+      msgs.forEach((m) => {
+        const isMe = m.from_gahoi_id === myGahoiId;
+        const bubble = document.createElement("div");
+        bubble.className = "gp-bubble " + (isMe ? "gp-bubble-me" : "gp-bubble-them");
+        bubble.innerHTML = `${m.body.replace(/</g, "&lt;")}<div class="gp-bubble-time">${timeAgo(m.sent_at)}</div>`;
+        body.appendChild(bubble);
+      });
+      body.scrollTop = body.scrollHeight;
+    }
+
+    async function markRead() {
+      await gpSupabase.from("messages")
+        .update({ read: true })
+        .eq("conversation_id", currentConvId).eq("to_gahoi_id", myGahoiId).eq("read", false);
+    }
+
+    function subscribeRealtime() {
+      if (realtimeChannel) gpSupabase.removeChannel(realtimeChannel);
+      realtimeChannel = gpSupabase
+        .channel("messages-" + currentConvId)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${currentConvId}` },
+          () => { loadMessages(); markRead(); })
+        .subscribe();
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById("msgInput");
+      const body = input.value.trim();
+      if (!body) return;
+      input.value = "";
+
+      const { error } = await gpSupabase.from("messages").insert({
+        conversation_id: currentConvId,
+        from_gahoi_id: myGahoiId,
+        to_gahoi_id: currentOtherId,
+        body,
+      });
+      if (error) { gpShowAlert("msgAlert", "Message नहीं भेजा जा सका: " + error.message, "error"); return; }
+
+      await gpSupabase.from("conversations").update({ last_message_at: new Date().toISOString() }).eq("id", currentConvId);
+      await loadMessages();
+    }
+
+    function closeThread() {
+      if (realtimeChannel) { gpSupabase.removeChannel(realtimeChannel); realtimeChannel = null; }
+      document.getElementById("threadView").classList.remove("gp-open");
+      document.getElementById("convListView").style.display = "block";
+      loadConversations();
+    }
+
+    document.getElementById("sendBtn").addEventListener("click", sendMessage);
+    document.getElementById("msgInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+    document.getElementById("threadBackBtn").addEventListener("click", closeThread);
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (!(await gpGuardFeature("messagesEnabled", "Messages"))) return;
+      myGahoiId = profile.gahoi_id;
+
+      const params = new URLSearchParams(window.location.search);
+      const withId = params.get("with");
+      if (withId) {
+        const { data: person } = await gpSupabase.from("persons").select("name, photo").eq("gahoi_id", withId).maybeSingle();
+        document.getElementById("loadingState").style.display = "none";
+        await openThread(withId, person?.name || withId, person?.photo || "");
+      } else {
+        await loadConversations();
+      }
+    })();
+  </script>
+</body>
+</html>

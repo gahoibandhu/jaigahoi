@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dharmshala Directory — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-wrap { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .gp-toggle-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    .gp-toggle-tabs button {
+      padding: 9px 18px; border-radius: 8px; border: 1.5px solid var(--gp-border);
+      background: #fff; cursor: pointer; font-weight: 700; font-size: .88rem;
+    }
+    .gp-toggle-tabs button.active { background: var(--gp-navy); color: #fff; border-color: var(--gp-navy); }
+    .gp-dh-card {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 18px;
+      box-shadow: var(--gp-shadow); margin-bottom: 12px;
+    }
+    .gp-dh-name { font-weight: 700; color: var(--gp-navy); }
+    .gp-dh-meta { font-size: .84rem; color: var(--gp-text-muted); line-height: 1.7; margin-top: 3px; }
+    .gp-dh-delete { font-size: .78rem; color: var(--gp-error); background: none; border: none; cursor: pointer; margin-top: 8px; padding: 0; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🛕 Dharmshala Directory</h1><p class="gp-header-sub">गहोई पोर्टल</p></div>
+  </div>
+
+  <div class="gp-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+
+    <div class="gp-toggle-tabs">
+      <button id="browseTab" class="active">📋 Browse करें</button>
+      <button id="postTab" style="display:none">➕ नई Dharmshala जोड़ें</button>
+    </div>
+
+    <div id="dhAlert" class="gp-alert"></div>
+
+    <div id="browseSection">
+      <div class="gp-field" style="max-width:300px"><input type="text" id="searchCity" placeholder="🔍 शहर से खोजें..."></div>
+      <div id="dhList"></div>
+    </div>
+
+    <div id="postSection" style="display:none">
+      <div class="gp-section" style="background:var(--gp-card); border-radius:var(--gp-radius-lg); padding:20px; box-shadow:var(--gp-shadow)">
+        <form id="dhForm">
+          <div class="gp-field"><label>राज्य</label><input type="text" id="state"></div>
+          <div class="gp-field"><label>शहर *</label><input type="text" id="city" required></div>
+          <div class="gp-field"><label>Dharmshala का नाम *</label><input type="text" id="name" required></div>
+          <div class="gp-field"><label>पता</label><input type="text" id="address"></div>
+          <div class="gp-field"><label>संपर्क व्यक्ति</label><input type="text" id="person"></div>
+          <div class="gp-field"><label>संपर्क नंबर</label><input type="text" id="contact"></div>
+          <div class="gp-field"><label>Google Maps लिंक</label><input type="text" id="maps"></div>
+          <button type="submit" class="gp-btn" id="dhSubmitBtn">जोड़ें</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myRole = null;
+    let allEntries = [];
+
+    function renderList(entries) {
+      const listEl = document.getElementById("dhList");
+      listEl.innerHTML = "";
+      if (!entries || entries.length === 0) { listEl.innerHTML = `<div class="gp-empty">कोई entry नहीं मिली।</div>`; return; }
+
+      const canDelete = myRole === "Admin";
+      entries.forEach((d) => {
+        const card = document.createElement("div");
+        card.className = "gp-dh-card";
+        card.innerHTML = `
+          <div class="gp-dh-name">${d.name}</div>
+          <div class="gp-dh-meta">
+            📍 ${d.address ? d.address + ", " : ""}${d.city || ""}${d.state ? ", " + d.state : ""}<br>
+            ${d.person ? "👤 " + d.person + "<br>" : ""}
+            ${d.contact ? "📞 " + d.contact + "<br>" : ""}
+            ${d.maps ? `<a href="${d.maps}" target="_blank" rel="noopener">🗺 Google Maps पर देखें</a>` : ""}
+          </div>
+          ${canDelete ? `<button class="gp-dh-delete" data-id="${d.id}">🗑 हटाएं</button>` : ""}
+        `;
+        listEl.appendChild(card);
+      });
+
+      listEl.querySelectorAll(".gp-dh-delete").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("क्या आप वाकई इसे हटाना चाहते हैं?")) return;
+          // dharmshala में soft-delete column नहीं है (legacy sheet में भी नहीं था) — hard delete,
+          // RLS की dharmshala_write_admin policy (is_admin() for all) से gated
+          const { error } = await gpSupabase.from("dharmshala").delete().eq("id", btn.getAttribute("data-id"));
+          if (error) { gpShowAlert("dhAlert", "हटाया नहीं जा सका: " + error.message, "error"); return; }
+          await loadDharmshala();
+        });
+      });
+    }
+
+    async function loadDharmshala() {
+      const { data, error } = await gpSupabase
+        .from("dharmshala")
+        .select("*")
+        .order("posted_at", { ascending: false });
+
+      if (error) { gpShowAlert("dhAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+      allEntries = data || [];
+      renderList(allEntries);
+    }
+
+    document.getElementById("searchCity").addEventListener("input", (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      if (!q) { renderList(allEntries); return; }
+      renderList(allEntries.filter((d) => (d.city || "").toLowerCase().includes(q) || (d.state || "").toLowerCase().includes(q)));
+    });
+
+    document.getElementById("browseTab").addEventListener("click", () => {
+      document.getElementById("browseTab").classList.add("active");
+      document.getElementById("postTab").classList.remove("active");
+      document.getElementById("browseSection").style.display = "block";
+      document.getElementById("postSection").style.display = "none";
+    });
+    document.getElementById("postTab").addEventListener("click", () => {
+      document.getElementById("postTab").classList.add("active");
+      document.getElementById("browseTab").classList.remove("active");
+      document.getElementById("postSection").style.display = "block";
+      document.getElementById("browseSection").style.display = "none";
+    });
+
+    document.getElementById("dhForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("dhAlert");
+      const btn = document.getElementById("dhSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "जोड़ा जा रहा है...";
+
+      const { error } = await gpSupabase.from("dharmshala").insert({
+        state: document.getElementById("state").value.trim(),
+        city: document.getElementById("city").value.trim(),
+        name: document.getElementById("name").value.trim(),
+        address: document.getElementById("address").value.trim(),
+        person: document.getElementById("person").value.trim(),
+        contact: document.getElementById("contact").value.trim(),
+        maps: document.getElementById("maps").value.trim(),
+      });
+
+      btn.disabled = false;
+      btn.textContent = "जोड़ें";
+
+      if (error) { gpShowAlert("dhAlert", "जोड़ा नहीं जा सका: " + error.message, "error"); return; }
+      document.getElementById("dhForm").reset();
+      document.getElementById("browseTab").click();
+      loadDharmshala();
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("dharmshalaEnabled", "Dharmshala Directory"))) return;
+      myRole = profile.role;
+      if (myRole === "Admin") document.getElementById("postTab").style.display = "inline-block";
+      await loadDharmshala();
+    })();
+  </script>
+</body>
+</html>

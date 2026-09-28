@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Member Directory — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-dir-wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .gp-search-bar {
+      display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .gp-search-bar input {
+      flex: 1; min-width: 180px; padding: 11px 14px; border: 1.5px solid var(--gp-border);
+      border-radius: var(--gp-radius); font-size: .95rem; font-family: inherit;
+    }
+    .gp-search-bar button {
+      padding: 11px 22px; background: var(--gp-gold); color: var(--gp-navy); border: none;
+      border-radius: var(--gp-radius); font-weight: 700; cursor: pointer;
+    }
+    .gp-filters { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+    .gp-filters input {
+      padding: 8px 12px; border: 1.5px solid var(--gp-border); border-radius: 8px;
+      font-size: .85rem; font-family: inherit; width: 130px;
+    }
+    .gp-member-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+    .gp-member-card {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px;
+      box-shadow: var(--gp-shadow); display: flex; gap: 12px; align-items: start;
+    }
+    .gp-member-photo {
+      width: 52px; height: 52px; border-radius: 50%; background: var(--gp-bg);
+      display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+      flex-shrink: 0; object-fit: cover;
+    }
+    .gp-member-name { font-weight: 700; color: var(--gp-navy); }
+    .gp-member-meta { font-size: .82rem; color: var(--gp-text-muted); line-height: 1.6; margin-top: 2px; }
+    .gp-tier-badge {
+      display: inline-block; font-size: .68rem; font-weight: 700; padding: 1px 8px;
+      border-radius: 10px; margin-left: 6px; vertical-align: middle;
+    }
+    .gp-tier-Gold { background: #fff3cd; color: #856404; }
+    .gp-tier-Silver { background: #e2e3e5; color: #383d41; }
+    .gp-tier-Bronze { background: #f0e2d0; color: #7a5800; }
+    .gp-pagination { display: flex; justify-content: center; gap: 10px; margin-top: 24px; align-items: center; }
+    .gp-pagination button {
+      padding: 8px 16px; border: 1.5px solid var(--gp-border); background: #fff;
+      border-radius: 8px; cursor: pointer; font-weight: 600;
+    }
+    .gp-pagination button:disabled { opacity: .4; cursor: not-allowed; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; grid-column: 1/-1; }
+    .gp-loading { text-align: center; color: var(--gp-text-muted); padding: 30px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>Member Directory</h1>
+      <p class="gp-header-sub">गहोई पोर्टल</p>
+    </div>
+  </div>
+
+  <div class="gp-dir-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+
+    <div class="gp-search-bar">
+      <input type="text" id="qInput" placeholder="नाम, शहर, अकना, पेशा से खोजें...">
+      <button id="searchBtn">खोजें</button>
+    </div>
+    <div class="gp-filters">
+      <input type="text" id="cityFilter" placeholder="शहर">
+      <input type="text" id="nativeFilter" placeholder="मूल निवास">
+      <input type="text" id="aknaFilter" placeholder="अकना">
+      <input type="text" id="bloodFilter" placeholder="Blood Group">
+    </div>
+
+    <div id="dirAlert" class="gp-alert"></div>
+    <div class="gp-loading" id="loadingState">खोज रहे हैं...</div>
+    <div class="gp-member-grid" id="memberGrid"></div>
+    <div class="gp-pagination" id="paginationBar" style="display:none">
+      <button id="prevBtn">← पिछला</button>
+      <span id="pageInfo"></span>
+      <button id="nextBtn">अगला →</button>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let currentPage = 1;
+    let totalPages = 1;
+
+    function buildFilters() {
+      return {
+        q: document.getElementById("qInput").value.trim() || undefined,
+        city: document.getElementById("cityFilter").value.trim() || undefined,
+        native: document.getElementById("nativeFilter").value.trim() || undefined,
+        akna: document.getElementById("aknaFilter").value.trim() || undefined,
+        bloodGroup: document.getElementById("bloodFilter").value.trim() || undefined,
+        page: currentPage,
+      };
+    }
+
+    function renderMembers(members) {
+      const grid = document.getElementById("memberGrid");
+      grid.innerHTML = "";
+      if (members.length === 0) {
+        grid.innerHTML = `<div class="gp-empty">कोई member नहीं मिला — filters बदल कर देखें</div>`;
+        return;
+      }
+      members.forEach((m) => {
+        const card = document.createElement("div");
+        card.className = "gp-member-card";
+        const photoHtml = m.photo
+          ? `<img class="gp-member-photo" src="${m.photo}" alt="">`
+          : `<div class="gp-member-photo">👤</div>`;
+        card.innerHTML = `
+          ${photoHtml}
+          <div>
+            <div class="gp-member-name">${m.name}<span class="gp-tier-badge gp-tier-${m.profileTier}">${m.profileTier}</span></div>
+            <div class="gp-member-meta">
+              ${m.profession ? "💼 " + m.profession + "<br>" : ""}
+              🏙 ${m.city || "—"} &nbsp;|&nbsp; 🌍 ${m.native || "—"}<br>
+              🏡 ${m.akna || "—"}
+              ${m.mobile ? "<br>📱 " + m.mobile : ""}
+              ${m.bloodGroup ? "<br>🩸 " + m.bloodGroup : ""}
+            </div>
+            <a class="gp-btn gp-btn-sm" href="messages.html?with=${encodeURIComponent(m.gahoiId)}" style="margin-top:8px;display:inline-block">✉️ Message</a>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    async function runSearch() {
+      document.getElementById("loadingState").style.display = "block";
+      document.getElementById("memberGrid").innerHTML = "";
+      gpHideAlert("dirAlert");
+
+      const result = await gpCallFunction("directory-search", buildFilters());
+      document.getElementById("loadingState").style.display = "none";
+
+      if (!result.success) {
+        gpShowAlert("dirAlert", result.message || "Search असफल रही।", "error");
+        return;
+      }
+
+      renderMembers(result.members);
+      totalPages = result.totalPages || 1;
+      document.getElementById("pageInfo").textContent = `Page ${result.page} / ${totalPages || 1}`;
+      document.getElementById("prevBtn").disabled = currentPage <= 1;
+      document.getElementById("nextBtn").disabled = currentPage >= totalPages;
+      document.getElementById("paginationBar").style.display = (result.total || 0) > 0 ? "flex" : "none";
+    }
+
+    document.getElementById("searchBtn").addEventListener("click", () => { currentPage = 1; runSearch(); });
+    document.getElementById("qInput").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") { currentPage = 1; runSearch(); }
+    });
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      if (currentPage > 1) { currentPage--; runSearch(); }
+    });
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      if (currentPage < totalPages) { currentPage++; runSearch(); }
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("directoryEnabled", "Member Directory"))) return;
+      await runSearch();
+    })();
+  </script>
+</body>
+</html>

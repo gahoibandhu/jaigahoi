@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Log — गहोई पोर्टल Admin</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-admin-wrap { max-width: 950px; margin: 0 auto; padding: 20px; }
+    .gp-admin-nav { display: flex; gap: 16px; margin-bottom: 6px; font-size: .9rem; flex-wrap: wrap; }
+    .gp-admin-nav a { color: var(--gp-navy); font-weight: 600; text-decoration: none; }
+    .gp-filter-row { display: flex; gap: 10px; margin: 16px 0; flex-wrap: wrap; }
+    .gp-filter-row input { flex: 1; min-width: 200px; padding: 9px 12px; border: 1.5px solid var(--gp-border); border-radius: 8px; font-size: .85rem; }
+    table.gp-audit-table { width: 100%; border-collapse: collapse; background: var(--gp-card); border-radius: var(--gp-radius-lg); overflow: hidden; box-shadow: var(--gp-shadow); font-size: .8rem; }
+    table.gp-audit-table th, table.gp-audit-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--gp-bg); vertical-align: top; }
+    table.gp-audit-table th { background: var(--gp-navy); color: #fff; font-size: .74rem; position: sticky; top: 0; }
+    .gp-result-SUCCESS { color: var(--gp-success); font-weight: 700; }
+    .gp-result-other { color: var(--gp-error); font-weight: 700; }
+    .gp-table-wrap { max-height: 70vh; overflow-y: auto; border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 30px 0; }
+    .gp-count-note { font-size: .8rem; color: var(--gp-text-muted); margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>📜 Audit Log</h1><p class="gp-header-sub">Admin Panel</p></div>
+  </div>
+
+  <div class="gp-admin-wrap">
+    <div class="gp-admin-nav">
+      <a href="home.html">← होम</a>
+      <a href="admin-members.html">👥 All Members</a>
+      <a href="admin-features.html">🚦 Feature Flags</a>
+    </div>
+
+    <div id="alAlert" class="gp-alert"></div>
+
+    <div class="gp-filter-row">
+      <input type="text" id="filterInput" placeholder="🔍 Action, actor, ya target से filter करें...">
+    </div>
+    <div class="gp-count-note" id="countNote"></div>
+    <div class="gp-table-wrap"><div id="tableBox"></div></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let allLogs = [];
+
+    function fmtDateTime(d) {
+      if (!d) return "";
+      try { return new Date(d).toLocaleString("hi-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return d; }
+    }
+
+    function render(logs) {
+      const box = document.getElementById("tableBox");
+      document.getElementById("countNote").textContent = `${logs.length} में से ${Math.min(logs.length, 300)} entries दिखाई जा रही हैं (सबसे नई पहले)`;
+      if (logs.length === 0) { box.innerHTML = `<div class="gp-empty">कोई audit entry नहीं मिली।</div>`; return; }
+
+      const rows = logs.slice(0, 300).map((l) => `
+        <tr>
+          <td>${fmtDateTime(l.logged_at)}</td>
+          <td><b>${l.action || ""}</b></td>
+          <td>${l.actor_name || ""}<br><span style="color:var(--gp-text-muted)">${l.actor_email || l.actor_gahoi_id || ""}</span></td>
+          <td>${l.target || ""}</td>
+          <td>${l.detail || ""}</td>
+          <td class="${(l.result || "").startsWith("SUCCESS") ? "gp-result-SUCCESS" : "gp-result-other"}">${l.result || ""}</td>
+        </tr>
+      `).join("");
+
+      box.innerHTML = `<table class="gp-audit-table"><thead><tr><th>समय</th><th>Action</th><th>Actor</th><th>Target</th><th>Detail</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    async function loadLogs() {
+      const { data, error } = await gpSupabase.from("audit_log").select("*").order("logged_at", { ascending: false }).limit(1000);
+      if (error) { gpShowAlert("alAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+      allLogs = data || [];
+      render(allLogs);
+    }
+
+    document.getElementById("filterInput").addEventListener("input", (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      if (!q) { render(allLogs); return; }
+      render(allLogs.filter((l) =>
+        (l.action || "").toLowerCase().includes(q) ||
+        (l.actor_name || "").toLowerCase().includes(q) ||
+        (l.actor_email || "").toLowerCase().includes(q) ||
+        (l.target || "").toLowerCase().includes(q)
+      ));
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.role !== "Admin") { window.location.href = "home.html"; return; }
+      await loadLogs();
+    })();
+  </script>
+</body>
+</html>

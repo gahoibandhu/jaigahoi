@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Directory — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-biz-wrap { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .gp-toggle-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    .gp-toggle-tabs button {
+      padding: 9px 18px; border-radius: 8px; border: 1.5px solid var(--gp-border);
+      background: #fff; cursor: pointer; font-weight: 700; font-size: .88rem;
+    }
+    .gp-toggle-tabs button.active { background: var(--gp-navy); color: #fff; border-color: var(--gp-navy); }
+    .gp-biz-card {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 18px;
+      box-shadow: var(--gp-shadow); margin-bottom: 12px; display: flex; gap: 14px;
+    }
+    .gp-biz-photo { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: var(--gp-bg); flex-shrink: 0; }
+    .gp-biz-firm { font-weight: 700; color: var(--gp-navy); }
+    .gp-biz-meta { font-size: .84rem; color: var(--gp-text-muted); line-height: 1.7; margin-top: 3px; }
+    .gp-biz-delete { font-size: .78rem; color: var(--gp-error); background: none; border: none; cursor: pointer; margin-top: 8px; padding: 0; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🏢 Business Directory</h1><p class="gp-header-sub">गहोई पोर्टल</p></div>
+  </div>
+
+  <div class="gp-biz-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+
+    <div class="gp-toggle-tabs">
+      <button id="browseTab" class="active">📋 Browse करें</button>
+      <button id="postTab">➕ नया Listing डालें</button>
+    </div>
+
+    <div id="bizAlert" class="gp-alert"></div>
+
+    <div id="browseSection">
+      <div id="bizList"></div>
+    </div>
+
+    <div id="postSection" style="display:none">
+      <div class="gp-section" style="background:var(--gp-card); border-radius:var(--gp-radius-lg); padding:20px; box-shadow:var(--gp-shadow)">
+        <form id="bizForm">
+          <div class="gp-field"><label>Firm/Business का नाम *</label><input type="text" id="firm" required></div>
+          <div class="gp-field"><label>Industry</label><input type="text" id="industry"></div>
+          <div class="gp-field"><label>संपर्क व्यक्ति *</label><input type="text" id="person" required></div>
+          <div class="gp-field"><label>पदनाम</label><input type="text" id="desig"></div>
+          <div class="gp-field"><label>पता *</label><input type="text" id="address" required></div>
+          <div class="gp-field"><label>Pincode *</label><input type="text" id="pincode" maxlength="6" required></div>
+          <div class="gp-field"><label>शहर</label><input type="text" id="city"></div>
+          <div class="gp-field"><label>मोबाइल *</label><input type="tel" id="mobile" pattern="[6-9][0-9]{9}" maxlength="10" required></div>
+          <div class="gp-field"><label>Photo URL</label><input type="text" id="photo"></div>
+          <button type="submit" class="gp-btn" id="bizSubmitBtn">Listing Post करें</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myGahoiId = null;
+    let myRole = null;
+
+    async function loadListings() {
+      const { data, error } = await gpSupabase
+        .from("business_listings")
+        .select("*")
+        .is("deleted_at", null)
+        .order("posted_at", { ascending: false });
+
+      const listEl = document.getElementById("bizList");
+      listEl.innerHTML = "";
+      if (error) { gpShowAlert("bizAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+      if (!data || data.length === 0) { listEl.innerHTML = `<div class="gp-empty">अभी कोई listing नहीं है — पहली आप डालें!</div>`; return; }
+
+      data.forEach((b) => {
+        const canDelete = b.posted_by === myGahoiId || myRole === "Admin" || myRole === "Approver";
+        const card = document.createElement("div");
+        card.className = "gp-biz-card";
+        const photoHtml = b.photo ? `<img class="gp-biz-photo" src="${b.photo}" alt="">` : `<div class="gp-biz-photo" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">🏢</div>`;
+        card.innerHTML = `
+          ${photoHtml}
+          <div>
+            <div class="gp-biz-firm">${b.firm}${b.industry ? " — " + b.industry : ""}</div>
+            <div class="gp-biz-meta">
+              👤 ${b.person}${b.desig ? " (" + b.desig + ")" : ""}<br>
+              📍 ${b.address}${b.city ? ", " + b.city : ""} — ${b.pincode || ""}<br>
+              📞 ${b.mobile}
+            </div>
+            ${canDelete ? `<button class="gp-biz-delete" data-id="${b.id}">🗑 हटाएं</button>` : ""}
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+
+      listEl.querySelectorAll(".gp-biz-delete").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("क्या आप वाकई इस listing को हटाना चाहते हैं?")) return;
+          const { error } = await gpSupabase
+            .from("business_listings")
+            .update({ deleted_at: new Date().toISOString(), deleted_by: myGahoiId })
+            .eq("id", btn.getAttribute("data-id"));
+          if (error) { gpShowAlert("bizAlert", "हटाया नहीं जा सका: " + error.message, "error"); return; }
+          loadListings();
+        });
+      });
+    }
+
+    document.getElementById("browseTab").addEventListener("click", () => {
+      document.getElementById("browseTab").classList.add("active");
+      document.getElementById("postTab").classList.remove("active");
+      document.getElementById("browseSection").style.display = "block";
+      document.getElementById("postSection").style.display = "none";
+    });
+    document.getElementById("postTab").addEventListener("click", () => {
+      document.getElementById("postTab").classList.add("active");
+      document.getElementById("browseTab").classList.remove("active");
+      document.getElementById("postSection").style.display = "block";
+      document.getElementById("browseSection").style.display = "none";
+    });
+
+    document.getElementById("bizForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("bizAlert");
+      const btn = document.getElementById("bizSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "Post हो रहा है...";
+
+      const { error } = await gpSupabase.from("business_listings").insert({
+        posted_by: myGahoiId,
+        firm: document.getElementById("firm").value.trim(),
+        industry: document.getElementById("industry").value.trim(),
+        person: document.getElementById("person").value.trim(),
+        desig: document.getElementById("desig").value.trim(),
+        address: document.getElementById("address").value.trim(),
+        pincode: document.getElementById("pincode").value.trim(),
+        city: document.getElementById("city").value.trim(),
+        mobile: document.getElementById("mobile").value.trim(),
+        photo: document.getElementById("photo").value.trim(),
+      });
+
+      btn.disabled = false;
+      btn.textContent = "Listing Post करें";
+
+      if (error) { gpShowAlert("bizAlert", "Post नहीं हो सका: " + error.message, "error"); return; }
+      document.getElementById("bizForm").reset();
+      document.getElementById("browseTab").click();
+      loadListings();
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("businessEnabled", "Business Directory"))) return;
+      myGahoiId = profile.gahoi_id;
+      myRole = profile.role;
+      await loadListings();
+    })();
+  </script>
+</body>
+</html>

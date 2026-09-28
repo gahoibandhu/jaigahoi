@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matrimony — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-mat-wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .gp-filters { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+    .gp-filters select, .gp-filters input {
+      padding: 9px 12px; border: 1.5px solid var(--gp-border); border-radius: 8px;
+      font-size: .88rem; font-family: inherit;
+    }
+    .gp-mat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .gp-mat-card {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); overflow: hidden;
+      box-shadow: var(--gp-shadow); position: relative;
+    }
+    .gp-mat-card.mutual { box-shadow: 0 0 0 3px var(--gp-maroon), var(--gp-shadow); }
+    .gp-mat-photo {
+      width: 100%; height: 180px; object-fit: cover; background: var(--gp-bg);
+      display: flex; align-items: center; justify-content: center; font-size: 3rem; color: #ccc;
+    }
+    .gp-mat-body { padding: 14px; }
+    .gp-mat-name { font-weight: 700; color: var(--gp-navy); display: flex; align-items: center; gap: 6px; }
+    .gp-verified-badge { color: var(--gp-success); font-size: .85rem; }
+    .gp-mat-meta { font-size: .82rem; color: var(--gp-text-muted); margin-top: 4px; line-height: 1.6; }
+    .gp-mutual-banner {
+      background: var(--gp-maroon); color: #fff; text-align: center; padding: 4px; font-size: .75rem; font-weight: 700;
+    }
+    .gp-mat-actions { display: flex; gap: 6px; margin-top: 12px; }
+    .gp-mat-actions button {
+      flex: 1; padding: 8px; border-radius: 8px; border: 1.5px solid var(--gp-border);
+      background: #fff; cursor: pointer; font-size: .8rem; font-weight: 700;
+    }
+    .gp-mat-actions button.active { background: var(--gp-gold); border-color: var(--gp-gold); color: var(--gp-navy); }
+    .gp-mat-actions button:disabled { opacity: .6; cursor: default; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; grid-column: 1/-1; }
+    .gp-cta-strip {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 20px;
+      box-shadow: var(--gp-shadow); margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .gp-cta-strip a { color: var(--gp-gold-dark); font-weight: 700; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>💑 Matrimony</h1>
+      <p class="gp-header-sub">गहोई पोर्टल</p>
+    </div>
+  </div>
+
+  <div class="gp-mat-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+
+    <div class="gp-cta-strip">
+      <span>अपनी matrimony profile बनाना/बदलना चाहते हैं?</span>
+      <a href="matrimony-form.html">Profile Manage करें →</a>
+    </div>
+
+    <div class="gp-filters">
+      <select id="genderFilter">
+        <option value="">सभी</option>
+        <option value="Male">वर/Male</option>
+        <option value="Female">वधू/Female</option>
+      </select>
+      <input type="text" id="cityFilter" placeholder="शहर">
+      <button id="filterBtn" class="gp-btn" style="width:auto;padding:9px 18px">Filter करें</button>
+    </div>
+
+    <div id="matAlert" class="gp-alert"></div>
+    <div class="gp-mat-grid" id="matGrid"></div>
+    <div class="gp-pagination" id="paginationBar" style="display:none; margin-top:20px; text-align:center">
+      <button id="prevBtn">← पिछला</button>
+      <span id="pageInfo" style="margin:0 12px"></span>
+      <button id="nextBtn">अगला →</button>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let currentPage = 1;
+    let totalPages = 1;
+    let myGahoiId = null;
+
+    function calcAge(dob) {
+      if (!dob) return "—";
+      // dob अक्सर DD-MM-YYYY जैसे format में आता है (मौजूदा data से) — best-effort parse
+      const parts = dob.split(/[-/]/);
+      if (parts.length !== 3) return dob;
+      const year = parts[2].length === 4 ? parseInt(parts[2]) : parseInt(parts[0]);
+      if (!year || year < 1930) return dob;
+      return (new Date().getFullYear() - year) + " वर्ष";
+    }
+
+    function renderProfiles(profiles) {
+      const grid = document.getElementById("matGrid");
+      grid.innerHTML = "";
+      if (profiles.length === 0) {
+        grid.innerHTML = `<div class="gp-empty">कोई profile नहीं मिली</div>`;
+        return;
+      }
+      profiles.forEach((p) => {
+        const isMutual = p.interestStatus === "mutual";
+        const card = document.createElement("div");
+        card.className = "gp-mat-card" + (isMutual ? " mutual" : "");
+        card.dataset.profileId = p.id;
+        const photoHtml = p.photos && p.photos[0]
+          ? `<img class="gp-mat-photo" src="${p.photos[0]}" alt="">`
+          : `<div class="gp-mat-photo">💑</div>`;
+        card.innerHTML = `
+          ${isMutual ? `<div class="gp-mutual-banner">💑 Mutual Match!</div>` : ""}
+          ${photoHtml}
+          <div class="gp-mat-body">
+            <div class="gp-mat-name">${p.name} ${p.verifiedBadge ? '<span class="gp-verified-badge">✔ Verified</span>' : ""}</div>
+            <div class="gp-mat-meta">
+              🎂 ${calcAge(p.dob)} &nbsp;|&nbsp; 📏 ${p.height || "—"}<br>
+              🎓 ${p.education || "—"}<br>
+              💼 ${p.occupation || "—"}<br>
+              🏙 ${p.city || "—"} &nbsp;|&nbsp; 🏡 ${p.akna || "—"}
+            </div>
+            ${!p.isOwn ? `
+            <div class="gp-mat-actions">
+              <button data-type="shortlist" class="${p.shortlisted ? "active" : ""}">${p.shortlisted ? "★ Shortlisted" : "☆ Shortlist"}</button>
+              <button data-type="interest" class="${p.interestStatus ? "active" : ""}" ${p.interestStatus ? "disabled" : ""}>
+                ${p.interestStatus === "mutual" ? "💑 Matched" : p.interestStatus ? "✓ Interest भेजा" : "💌 Interest भेजें"}
+              </button>
+            </div>` : `<div style="margin-top:10px; font-size:.8rem; color:var(--gp-text-muted)">यह आपकी अपनी profile है</div>`}
+          </div>
+        `;
+        grid.appendChild(card);
+
+        if (!p.isOwn) {
+          card.querySelectorAll(".gp-mat-actions button").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+              btn.disabled = true;
+              const type = btn.getAttribute("data-type");
+              const result = await gpCallFunction("matrimony-interest", { toProfileId: p.id, type });
+              if (!result.success) {
+                gpShowAlert("matAlert", result.message || "Action असफल रही।", "error");
+                btn.disabled = false;
+                return;
+              }
+              if (result.mutual) {
+                gpShowAlert("matAlert", "🎉 यह एक Mutual Match है! Contact details email से भेज दी गई हैं।", "success");
+              }
+              runSearch();   // refresh state
+            });
+          });
+        }
+      });
+    }
+
+    async function runSearch() {
+      gpHideAlert("matAlert");
+      const result = await gpCallFunction("matrimony-list", {
+        gender: document.getElementById("genderFilter").value || undefined,
+        city: document.getElementById("cityFilter").value.trim() || undefined,
+        page: currentPage,
+      });
+      if (!result.success) {
+        gpShowAlert("matAlert", result.message || "Load नहीं हो सका।", "error");
+        return;
+      }
+      renderProfiles(result.profiles);
+      totalPages = result.totalPages || 1;
+      document.getElementById("pageInfo").textContent = `Page ${result.page} / ${totalPages || 1}`;
+      document.getElementById("prevBtn").disabled = currentPage <= 1;
+      document.getElementById("nextBtn").disabled = currentPage >= totalPages;
+      document.getElementById("paginationBar").style.display = (result.total || 0) > 0 ? "block" : "none";
+    }
+
+    document.getElementById("filterBtn").addEventListener("click", () => { currentPage = 1; runSearch(); });
+    document.getElementById("prevBtn").addEventListener("click", () => { if (currentPage > 1) { currentPage--; runSearch(); } });
+    document.getElementById("nextBtn").addEventListener("click", () => { if (currentPage < totalPages) { currentPage++; runSearch(); } });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("matrimonyEnabled", "Matrimony"))) return;
+      myGahoiId = profile.gahoi_id;
+
+      await runSearch();
+
+      // ── "Live" — Supabase Realtime से मौजूदा interests पर mutual-match बिना
+      //    refresh किए दिखता है (भाग 3 Phase F.1 का वादा) ────────────────────────
+      gpSupabase
+        .channel("matrimony-interests-live")
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "matrimony_interests", filter: `from_gahoi_id=eq.${myGahoiId}` },
+          (payload) => {
+            if (payload.new.status === "mutual") {
+              gpShowAlert("matAlert", "🎉 आपका एक नया Mutual Match है! पेज refresh हो रहा है...", "success");
+              setTimeout(runSearch, 1500);
+            }
+          },
+        )
+        .subscribe();
+    })();
+  </script>
+</body>
+</html>

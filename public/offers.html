@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Current Offers — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-wrap { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .gp-toggle-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    .gp-toggle-tabs button {
+      padding: 9px 18px; border-radius: 8px; border: 1.5px solid var(--gp-border);
+      background: #fff; cursor: pointer; font-weight: 700; font-size: .88rem;
+    }
+    .gp-toggle-tabs button.active { background: var(--gp-navy); color: #fff; border-color: var(--gp-navy); }
+    .gp-off-card {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 18px;
+      box-shadow: var(--gp-shadow); margin-bottom: 12px; display: flex; gap: 14px;
+    }
+    .gp-off-photo { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; background: var(--gp-bg); flex-shrink: 0; }
+    .gp-off-title { font-weight: 700; color: var(--gp-navy); }
+    .gp-off-meta { font-size: .84rem; color: var(--gp-text-muted); line-height: 1.7; margin-top: 3px; }
+    .gp-off-expiry { font-size: .76rem; color: var(--gp-gold-dark); font-weight: 700; }
+    .gp-off-delete { font-size: .78rem; color: var(--gp-error); background: none; border: none; cursor: pointer; margin-top: 8px; padding: 0; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🎁 Current Offers</h1><p class="gp-header-sub">गहोई पोर्टल</p></div>
+  </div>
+
+  <div class="gp-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+
+    <div class="gp-toggle-tabs">
+      <button id="browseTab" class="active">📋 Browse करें</button>
+      <button id="postTab">➕ नया Offer डालें</button>
+    </div>
+
+    <div id="offAlert" class="gp-alert"></div>
+
+    <div id="browseSection">
+      <div id="offList"></div>
+    </div>
+
+    <div id="postSection" style="display:none">
+      <div class="gp-section" style="background:var(--gp-card); border-radius:var(--gp-radius-lg); padding:20px; box-shadow:var(--gp-shadow)">
+        <form id="offForm">
+          <div class="gp-field"><label>Offer का शीर्षक *</label><input type="text" id="title" required></div>
+          <div class="gp-field"><label>विवरण *</label><input type="text" id="details" required></div>
+          <div class="gp-field"><label>लागू शहर</label><input type="text" id="cities" placeholder="जैसे: Jhansi, Lalitpur"></div>
+          <div class="gp-field"><label>संपर्क मोबाइल</label><input type="tel" id="mobile" pattern="[6-9][0-9]{9}" maxlength="10"></div>
+          <div class="gp-field"><label>Image URL</label><input type="text" id="image"></div>
+          <div class="gp-field"><label>कब तक मान्य (Valid Till)</label><input type="date" id="validTill"></div>
+          <button type="submit" class="gp-btn" id="offSubmitBtn">Offer Post करें</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myGahoiId = null;
+    let myRole = null;
+
+    function fmtDate(d) {
+      if (!d) return "";
+      try {
+        return new Date(d).toLocaleDateString("hi-IN", { day: "numeric", month: "short", year: "numeric" });
+      } catch (e) { return d; }
+    }
+
+    async function loadOffers() {
+      // offers_read_all policy ख़ुद ही deleted_at is null और valid_till expiry check करती है
+      const { data, error } = await gpSupabase
+        .from("offers")
+        .select("*")
+        .order("posted_at", { ascending: false });
+
+      const listEl = document.getElementById("offList");
+      listEl.innerHTML = "";
+      if (error) { gpShowAlert("offAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+      if (!data || data.length === 0) { listEl.innerHTML = `<div class="gp-empty">अभी कोई offer नहीं है — पहला आप डालें!</div>`; return; }
+
+      data.forEach((o) => {
+        const canDelete = o.posted_by === myGahoiId || myRole === "Admin" || myRole === "Approver";
+        const card = document.createElement("div");
+        card.className = "gp-off-card";
+        const photoHtml = o.image ? `<img class="gp-off-photo" src="${o.image}" alt="">` : `<div class="gp-off-photo" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem">🎁</div>`;
+        card.innerHTML = `
+          ${photoHtml}
+          <div>
+            <div class="gp-off-title">${o.title || ""}</div>
+            <div class="gp-off-meta">
+              ${o.details || ""}<br>
+              ${o.cities ? "📍 " + o.cities + "<br>" : ""}
+              ${o.mobile ? "📞 " + o.mobile + "<br>" : ""}
+              ${o.valid_till ? `<span class="gp-off-expiry">⏳ ${fmtDate(o.valid_till)} तक मान्य</span>` : ""}
+            </div>
+            ${canDelete ? `<button class="gp-off-delete" data-id="${o.id}">🗑 हटाएं</button>` : ""}
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+
+      listEl.querySelectorAll(".gp-off-delete").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("क्या आप वाकई इस offer को हटाना चाहते हैं?")) return;
+          const { error } = await gpSupabase
+            .from("offers")
+            .update({ deleted_at: new Date().toISOString(), deleted_by: myGahoiId })
+            .eq("id", btn.getAttribute("data-id"));
+          if (error) { gpShowAlert("offAlert", "हटाया नहीं जा सका: " + error.message, "error"); return; }
+          loadOffers();
+        });
+      });
+    }
+
+    document.getElementById("browseTab").addEventListener("click", () => {
+      document.getElementById("browseTab").classList.add("active");
+      document.getElementById("postTab").classList.remove("active");
+      document.getElementById("browseSection").style.display = "block";
+      document.getElementById("postSection").style.display = "none";
+    });
+    document.getElementById("postTab").addEventListener("click", () => {
+      document.getElementById("postTab").classList.add("active");
+      document.getElementById("browseTab").classList.remove("active");
+      document.getElementById("postSection").style.display = "block";
+      document.getElementById("browseSection").style.display = "none";
+    });
+
+    document.getElementById("offForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("offAlert");
+      const btn = document.getElementById("offSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "Post हो रहा है...";
+
+      const validTill = document.getElementById("validTill").value;
+      const { error } = await gpSupabase.from("offers").insert({
+        posted_by: myGahoiId,
+        title: document.getElementById("title").value.trim(),
+        details: document.getElementById("details").value.trim(),
+        cities: document.getElementById("cities").value.trim(),
+        mobile: document.getElementById("mobile").value.trim(),
+        image: document.getElementById("image").value.trim(),
+        // ख़ाली छोड़ने पर legacy जैसा ~60 दिन default (client-side, DB खुद कोई default नहीं लगाती)
+        valid_till: validTill || new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10),
+      });
+
+      btn.disabled = false;
+      btn.textContent = "Offer Post करें";
+
+      if (error) { gpShowAlert("offAlert", "Post नहीं हो सका: " + error.message, "error"); return; }
+      document.getElementById("offForm").reset();
+      document.getElementById("browseTab").click();
+      loadOffers();
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("offersEnabled", "Current Offers"))) return;
+      myGahoiId = profile.gahoi_id;
+      myRole = profile.role;
+      await loadOffers();
+    })();
+  </script>
+</body>
+</html>

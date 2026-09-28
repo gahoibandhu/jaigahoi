@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>होम — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; background: var(--gp-navy); color: #fff;
+    }
+    .gp-topbar .gp-user { display: flex; align-items: center; gap: 10px; }
+    .gp-topbar img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #fff2; }
+    .gp-topbar button {
+      background: transparent; border: 1.5px solid rgba(255,255,255,.4); color: #fff;
+      padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: .85rem;
+    }
+    .gp-tiles {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 14px; max-width: 900px; margin: 24px auto; padding: 0 20px;
+    }
+    .gp-tile {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 20px 14px;
+      text-align: center; text-decoration: none; color: var(--gp-navy); box-shadow: var(--gp-shadow);
+      font-weight: 600; font-size: .92rem; transition: transform .1s;
+    }
+    .gp-tile:hover { transform: translateY(-2px); }
+    .gp-tile .gp-tile-icon { font-size: 1.8rem; display: block; margin-bottom: 8px; }
+    .gp-welcome { max-width: 900px; margin: 20px auto 0; padding: 0 20px; }
+    .gp-welcome h2 { color: var(--gp-navy); margin-bottom: 4px; }
+    .gp-welcome p { color: var(--gp-text-muted); margin: 0; }
+    .gp-admin-banner {
+      max-width: 900px; margin: 16px auto 0; padding: 12px 20px; background: var(--gp-warning-bg);
+      border: 1px solid var(--gp-warning-border); border-radius: var(--gp-radius); display: none;
+    }
+    .gp-admin-banner a { color: var(--gp-gold-dark); font-weight: 700; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-topbar">
+    <div class="gp-user">
+      <img id="userPhoto" alt="" style="display:none">
+      <div id="userPhotoPlaceholder" style="width:36px;height:36px;border-radius:50%;background:#ffffff33;display:flex;align-items:center;justify-content:center;font-size:1.1rem">👤</div>
+      <div>
+        <div id="userName" style="font-weight:700">...</div>
+        <div id="userGahoiId" style="font-size:.75rem; opacity:.8"></div>
+      </div>
+    </div>
+    <button id="logoutBtn">Logout</button>
+  </div>
+
+  <div class="gp-welcome">
+    <h2 id="welcomeMsg">नमस्ते!</h2>
+    <p>गहोई पोर्टल में आपका स्वागत है</p>
+  </div>
+
+  <div class="gp-admin-banner" id="adminBanner">
+    ⚙️ आप Admin/Approver हैं — <a href="admin-pending.html">Pending Approvals</a> &nbsp;|&nbsp; <a href="admin-members.html">All Members</a> &nbsp;|&nbsp; <a href="admin-mahasabha.html">Mahasabha Applications</a> &nbsp;|&nbsp; <a href="admin-privacy.html">Privacy & Compliance</a> &nbsp;|&nbsp; <a href="admin-ledger.html">Ledger</a> &nbsp;|&nbsp; <a href="admin-audit-log.html">Audit Log</a> &nbsp;|&nbsp; <a href="admin-broadcast.html">Broadcast Email</a> &nbsp;|&nbsp; <a href="admin-features.html">Feature Flags</a> &nbsp;|&nbsp; <a href="admin-settings.html">Settings</a>
+  </div>
+
+  <div class="gp-tiles">
+    <a href="directory.html" class="gp-tile"><span class="gp-tile-icon">👥</span>Member Directory</a>
+    <a href="matrimony.html" class="gp-tile"><span class="gp-tile-icon">💑</span>Matrimony</a>
+    <a href="business.html" class="gp-tile"><span class="gp-tile-icon">🏢</span>Business Directory</a>
+    <a href="jobs.html" class="gp-tile"><span class="gp-tile-icon">💼</span>Job Board</a>
+    <a href="messages.html" class="gp-tile"><span class="gp-tile-icon">✉️</span>Messages</a>
+    <a href="space.html" class="gp-tile"><span class="gp-tile-icon">🌐</span>Gahoi Space</a>
+    <a href="events.html" class="gp-tile"><span class="gp-tile-icon">📅</span>Events</a>
+    <a href="gallery.html" class="gp-tile"><span class="gp-tile-icon">🖼</span>Gallery</a>
+    <a href="offers.html" class="gp-tile"><span class="gp-tile-icon">🎁</span>Current Offers</a>
+    <a href="magazines.html" class="gp-tile"><span class="gp-tile-icon">📰</span>Magazine</a>
+    <a href="mahasabha.html" class="gp-tile"><span class="gp-tile-icon">🏛</span>Mahasabha Membership</a>
+    <a href="known-members.html" class="gp-tile"><span class="gp-tile-icon">🧑‍🤝‍🧑</span>Known Members</a>
+    <a href="referrals.html" class="gp-tile"><span class="gp-tile-icon">🤝</span>Referrals</a>
+    <a href="privacy-dashboard.html" class="gp-tile"><span class="gp-tile-icon">🔒</span>Privacy Dashboard</a>
+    <a href="dharmshala.html" class="gp-tile"><span class="gp-tile-icon">🛕</span>Dharmshala</a>
+    <a href="daan-seva.html" class="gp-tile"><span class="gp-tile-icon">🙏</span>Daan Seva</a>
+    <a href="profile.html" class="gp-tile"><span class="gp-tile-icon">👤</span>मेरी Profile</a>
+    <a href="privacy-dashboard.html" class="gp-tile"><span class="gp-tile-icon">🔐</span>Privacy Dashboard</a>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status === "Pending") { window.location.href = "pending-approval.html"; return; }
+      if (profile.status === "Rejected") { window.location.href = "login.html"; return; }
+
+      document.getElementById("userName").textContent = profile.name || "";
+      document.getElementById("userGahoiId").textContent = profile.gahoi_id || "";
+      document.getElementById("welcomeMsg").textContent = `नमस्ते, ${profile.name}!`;
+      if (profile.photo) {
+        document.getElementById("userPhoto").src = profile.photo;
+        document.getElementById("userPhoto").style.display = "block";
+        document.getElementById("userPhotoPlaceholder").style.display = "none";
+      }
+
+      if (profile.role === "Admin" || profile.role === "Approver" || profile.role === "mahasabhaPrint") {
+        document.getElementById("adminBanner").style.display = "block";
+      }
+    })();
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      await gpSupabase.auth.signOut();
+      window.location.href = "login.html";
+    });
+  </script>
+</body>
+</html>

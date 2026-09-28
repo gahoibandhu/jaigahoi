@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ledger — गहोई पोर्टल Admin</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-admin-wrap { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .gp-admin-nav { display: flex; gap: 16px; margin-bottom: 6px; font-size: .9rem; flex-wrap: wrap; }
+    .gp-admin-nav a { color: var(--gp-navy); font-weight: 600; text-decoration: none; }
+    .gp-stats-row { display: flex; gap: 12px; margin: 16px 0; }
+    .gp-stat-box { flex: 1; background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); padding: 14px; text-align: center; }
+    .gp-stat-num { font-size: 1.3rem; font-weight: 800; }
+    .gp-stat-income { color: var(--gp-success); } .gp-stat-expense { color: var(--gp-error); } .gp-stat-net { color: var(--gp-navy); }
+    .gp-stat-label { font-size: .74rem; color: var(--gp-text-muted); }
+    .gp-form-card { background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 18px; box-shadow: var(--gp-shadow); margin-bottom: 18px; }
+    .gp-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 10px; align-items: end; }
+    .gp-form-grid label { display: block; font-size: .78rem; font-weight: 600; color: var(--gp-navy); margin-bottom: 3px; }
+    .gp-form-grid input, .gp-form-grid select { width: 100%; padding: 8px 10px; border: 1.5px solid var(--gp-border); border-radius: 7px; font-size: .85rem; font-family: inherit; box-sizing: border-box; }
+    table.gp-ledger-table { width: 100%; border-collapse: collapse; background: var(--gp-card); border-radius: var(--gp-radius-lg); overflow: hidden; box-shadow: var(--gp-shadow); }
+    table.gp-ledger-table th, table.gp-ledger-table td { padding: 9px 12px; text-align: left; font-size: .82rem; border-bottom: 1px solid var(--gp-bg); }
+    table.gp-ledger-table th { background: var(--gp-navy); color: #fff; font-size: .76rem; }
+    .gp-amt-income { color: var(--gp-success); font-weight: 700; } .gp-amt-expense { color: var(--gp-error); font-weight: 700; }
+    .gp-del-btn { border: none; background: none; color: var(--gp-error); cursor: pointer; font-size: .82rem; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 30px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>📒 Ledger</h1><p class="gp-header-sub">Admin Panel — Income/Expense</p></div>
+  </div>
+
+  <div class="gp-admin-wrap">
+    <div class="gp-admin-nav">
+      <a href="home.html">← होम</a>
+      <a href="admin-members.html">👥 All Members</a>
+      <a href="admin-features.html">🚦 Feature Flags</a>
+    </div>
+
+    <div id="ldAlert" class="gp-alert"></div>
+
+    <div class="gp-stats-row">
+      <div class="gp-stat-box"><div class="gp-stat-num gp-stat-income" id="totalIncome">—</div><div class="gp-stat-label">कुल Income</div></div>
+      <div class="gp-stat-box"><div class="gp-stat-num gp-stat-expense" id="totalExpense">—</div><div class="gp-stat-label">कुल Expense</div></div>
+      <div class="gp-stat-box"><div class="gp-stat-num gp-stat-net" id="netAmount">—</div><div class="gp-stat-label">Net Balance</div></div>
+    </div>
+
+    <div class="gp-form-card">
+      <div class="gp-form-grid">
+        <div><label>Date</label><input type="date" id="entryDate"></div>
+        <div><label>Type</label><select id="entryType"><option value="income">Income</option><option value="expense">Expense</option></select></div>
+        <div><label>राशि (₹)</label><input type="number" id="entryAmount" min="1" step="0.01"></div>
+        <div><label>Category</label><input type="text" id="entryCategory"></div>
+        <div style="grid-column:1/-1"><label>विवरण</label><input type="text" id="entryDesc"></div>
+        <div><button class="gp-btn" id="addEntryBtn" style="width:100%">➕ Entry जोड़ें</button></div>
+      </div>
+    </div>
+
+    <div id="ledgerTableBox"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myRole = null;
+    let myGahoiId = null;
+
+    function fmtDate(d) { if (!d) return ""; try { return new Date(d).toLocaleDateString("hi-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return d; } }
+    function fmtAmt(n) { return "₹" + Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2 }); }
+
+    async function loadLedger() {
+      const { data, error } = await gpSupabase.from("ledger_entries").select("*").order("entry_date", { ascending: false });
+      const box = document.getElementById("ledgerTableBox");
+      if (error) { gpShowAlert("ldAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+
+      const entries = data || [];
+      const income = entries.filter((e) => e.entry_type === "income").reduce((s, e) => s + Number(e.amount), 0);
+      const expense = entries.filter((e) => e.entry_type === "expense").reduce((s, e) => s + Number(e.amount), 0);
+      document.getElementById("totalIncome").textContent = fmtAmt(income);
+      document.getElementById("totalExpense").textContent = fmtAmt(expense);
+      document.getElementById("netAmount").textContent = fmtAmt(income - expense);
+
+      if (entries.length === 0) { box.innerHTML = `<div class="gp-empty">अभी कोई entry नहीं है।</div>`; return; }
+
+      const canDelete = myRole === "Admin";
+      let rows = entries.map((e) => `
+        <tr>
+          <td>${fmtDate(e.entry_date)}</td>
+          <td class="${e.entry_type === "income" ? "gp-amt-income" : "gp-amt-expense"}">${e.entry_type === "income" ? "▲" : "▼"} ${e.entry_type}</td>
+          <td>${e.description}</td>
+          <td>${e.category || "—"}</td>
+          <td class="${e.entry_type === "income" ? "gp-amt-income" : "gp-amt-expense"}">${fmtAmt(e.amount)}</td>
+          <td>${e.added_by || "—"}</td>
+          <td>${canDelete ? `<button class="gp-del-btn" data-id="${e.id}">🗑</button>` : ""}</td>
+        </tr>
+      `).join("");
+
+      box.innerHTML = `<table class="gp-ledger-table"><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Category</th><th>Amount</th><th>Added By</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+
+      box.querySelectorAll(".gp-del-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("क्या आप वाकई इस entry को हटाना चाहते हैं?")) return;
+          const { error } = await gpSupabase.from("ledger_entries").delete().eq("id", btn.getAttribute("data-id"));
+          if (error) { gpShowAlert("ldAlert", "हटाया नहीं जा सका: " + error.message, "error"); return; }
+          await loadLedger();
+        });
+      });
+    }
+
+    document.getElementById("addEntryBtn").addEventListener("click", async () => {
+      gpHideAlert("ldAlert");
+      const amount = Number(document.getElementById("entryAmount").value);
+      const desc = document.getElementById("entryDesc").value.trim();
+      const date = document.getElementById("entryDate").value || new Date().toISOString().slice(0, 10);
+      if (!amount || amount <= 0) { gpShowAlert("ldAlert", "सही राशि भरें।", "error"); return; }
+      if (!desc) { gpShowAlert("ldAlert", "विवरण ज़रूरी है।", "error"); return; }
+
+      const { error } = await gpSupabase.from("ledger_entries").insert({
+        entry_date: date,
+        entry_type: document.getElementById("entryType").value,
+        amount,
+        description: desc,
+        category: document.getElementById("entryCategory").value.trim(),
+        added_by: myGahoiId,
+      });
+      if (error) { gpShowAlert("ldAlert", "जोड़ा नहीं जा सका: " + error.message, "error"); return; }
+      document.getElementById("entryAmount").value = "";
+      document.getElementById("entryDesc").value = "";
+      document.getElementById("entryCategory").value = "";
+      await loadLedger();
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      myRole = profile.role;
+      myGahoiId = profile.gahoi_id;
+      if (myRole !== "Admin" && myRole !== "Approver") { window.location.href = "home.html"; return; }
+      await loadLedger();
+    })();
+  </script>
+</body>
+</html>

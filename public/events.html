@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community Events — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-wrap { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .gp-toggle-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    .gp-toggle-tabs button {
+      padding: 9px 18px; border-radius: 8px; border: 1.5px solid var(--gp-border);
+      background: #fff; cursor: pointer; font-weight: 700; font-size: .88rem;
+    }
+    .gp-toggle-tabs button.active { background: var(--gp-navy); color: #fff; border-color: var(--gp-navy); }
+    .gp-ev-card {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 18px;
+      box-shadow: var(--gp-shadow); margin-bottom: 12px;
+    }
+    .gp-ev-img { width: 100%; max-height: 220px; object-fit: cover; border-radius: var(--gp-radius); margin-bottom: 10px; }
+    .gp-ev-title { font-weight: 700; color: var(--gp-navy); font-size: 1.05rem; }
+    .gp-ev-date { font-size: .84rem; color: var(--gp-gold-dark); font-weight: 700; margin: 3px 0 6px; }
+    .gp-ev-desc { font-size: .9rem; color: var(--gp-text); white-space: pre-wrap; }
+    .gp-ev-delete { font-size: .78rem; color: var(--gp-error); background: none; border: none; cursor: pointer; margin-top: 8px; padding: 0; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>📅 Community Events</h1><p class="gp-header-sub">गहोई पोर्टल</p></div>
+  </div>
+
+  <div class="gp-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+
+    <div class="gp-toggle-tabs">
+      <button id="browseTab" class="active">📋 Events देखें</button>
+      <button id="postTab" style="display:none">➕ नया Event डालें</button>
+    </div>
+
+    <div id="evAlert" class="gp-alert"></div>
+
+    <div id="browseSection">
+      <div id="evList"></div>
+    </div>
+
+    <div id="postSection" style="display:none">
+      <div class="gp-section" style="background:var(--gp-card); border-radius:var(--gp-radius-lg); padding:20px; box-shadow:var(--gp-shadow)">
+        <form id="evForm">
+          <div class="gp-field"><label>Event का शीर्षक *</label><input type="text" id="title" required></div>
+          <div class="gp-field"><label>तारीख़ *</label><input type="date" id="eventDate" required></div>
+          <div class="gp-field"><label>विवरण</label><input type="text" id="description"></div>
+          <div class="gp-field"><label>Image URL</label><input type="text" id="image"></div>
+          <button type="submit" class="gp-btn" id="evSubmitBtn">Event Post करें</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myGahoiId = null;
+    let myRole = null;
+
+    function fmtDate(d) {
+      if (!d) return "";
+      try {
+        return new Date(d).toLocaleDateString("hi-IN", { day: "numeric", month: "long", year: "numeric" });
+      } catch (e) { return d; }
+    }
+
+    async function loadEvents() {
+      const { data, error } = await gpSupabase
+        .from("community_events")
+        .select("*")
+        .is("deleted_at", null)
+        .order("event_date", { ascending: true });
+
+      const listEl = document.getElementById("evList");
+      listEl.innerHTML = "";
+      if (error) { gpShowAlert("evAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+      if (!data || data.length === 0) { listEl.innerHTML = `<div class="gp-empty">अभी कोई event नहीं है।</div>`; return; }
+
+      data.forEach((e) => {
+        const card = document.createElement("div");
+        card.className = "gp-ev-card";
+        card.innerHTML = `
+          ${e.image ? `<img class="gp-ev-img" src="${e.image}" alt="">` : ""}
+          <div class="gp-ev-title">${e.title || ""}</div>
+          <div class="gp-ev-date">📅 ${fmtDate(e.event_date)}</div>
+          <div class="gp-ev-desc">${e.description || ""}</div>
+          ${myRole === "Admin" ? `<button class="gp-ev-delete" data-id="${e.id}">🗑 हटाएं</button>` : ""}
+        `;
+        listEl.appendChild(card);
+      });
+
+      listEl.querySelectorAll(".gp-ev-delete").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("क्या आप वाकई इस event को हटाना चाहते हैं?")) return;
+          const { error } = await gpSupabase
+            .from("community_events")
+            .update({ deleted_at: new Date().toISOString() })
+            .eq("id", btn.getAttribute("data-id"));
+          if (error) { gpShowAlert("evAlert", "हटाया नहीं जा सका: " + error.message, "error"); return; }
+          loadEvents();
+        });
+      });
+    }
+
+    document.getElementById("browseTab").addEventListener("click", () => {
+      document.getElementById("browseTab").classList.add("active");
+      document.getElementById("postTab").classList.remove("active");
+      document.getElementById("browseSection").style.display = "block";
+      document.getElementById("postSection").style.display = "none";
+    });
+    document.getElementById("postTab").addEventListener("click", () => {
+      document.getElementById("postTab").classList.add("active");
+      document.getElementById("browseTab").classList.remove("active");
+      document.getElementById("postSection").style.display = "block";
+      document.getElementById("browseSection").style.display = "none";
+    });
+
+    document.getElementById("evForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("evAlert");
+      const btn = document.getElementById("evSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "Post हो रहा है...";
+
+      const { error } = await gpSupabase.from("community_events").insert({
+        title: document.getElementById("title").value.trim(),
+        event_date: document.getElementById("eventDate").value,
+        description: document.getElementById("description").value.trim(),
+        image: document.getElementById("image").value.trim(),
+      });
+
+      btn.disabled = false;
+      btn.textContent = "Event Post करें";
+
+      if (error) { gpShowAlert("evAlert", "Post नहीं हो सका: " + error.message, "error"); return; }
+      document.getElementById("evForm").reset();
+      document.getElementById("browseTab").click();
+      loadEvents();
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("eventsEnabled", "Community Events"))) return;
+      myGahoiId = profile.gahoi_id;
+      myRole = profile.role;
+      // community_events लिखना सिर्फ़ is_admin() (RLS) — Approver को भी tab नहीं दिखाते
+      if (myRole === "Admin") document.getElementById("postTab").style.display = "inline-block";
+      await loadEvents();
+    })();
+  </script>
+</body>
+</html>

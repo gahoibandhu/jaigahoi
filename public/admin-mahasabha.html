@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mahasabha Applications — गहोई पोर्टल Admin</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .gp-toggle-tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+    .gp-toggle-tabs button {
+      padding: 8px 16px; border-radius: 8px; border: 1.5px solid var(--gp-border);
+      background: #fff; cursor: pointer; font-weight: 700; font-size: .82rem;
+    }
+    .gp-toggle-tabs button.active { background: var(--gp-navy); color: #fff; border-color: var(--gp-navy); }
+    .gp-app-card { background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 18px; box-shadow: var(--gp-shadow); margin-bottom: 14px; }
+    .gp-app-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+    .gp-app-name { font-weight: 700; color: var(--gp-navy); font-size: 1.02rem; }
+    .gp-app-meta { font-size: .82rem; color: var(--gp-text-muted); line-height: 1.7; margin-top: 3px; }
+    .gp-status-badge { display: inline-block; padding: 3px 12px; border-radius: 16px; font-weight: 700; font-size: .76rem; white-space: nowrap; }
+    .gp-status-Pending { background: var(--gp-warning-bg); color: var(--gp-gold-dark); }
+    .gp-status-Approved { background: #e8f5ee; color: var(--gp-success); }
+    .gp-status-Rejected { background: #fdecea; color: var(--gp-error); }
+    .gp-app-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 6px 16px; font-size: .82rem; color: var(--gp-text); margin: 10px 0; padding: 10px; background: var(--gp-bg); border-radius: var(--gp-radius); }
+    .gp-app-form b { color: var(--gp-navy); }
+    .gp-checks { display: flex; gap: 16px; flex-wrap: wrap; margin: 10px 0; font-size: .84rem; }
+    .gp-checks label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    .gp-app-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .gp-app-actions button { font-size: .8rem; padding: 6px 14px; border-radius: 8px; border: 1.5px solid var(--gp-border); background: #fff; cursor: pointer; font-weight: 600; }
+    .gp-btn-approve { color: var(--gp-success); border-color: var(--gp-success) !important; }
+    .gp-btn-reject { color: var(--gp-error); border-color: var(--gp-error) !important; }
+    .gp-remarks { width: 100%; margin-top: 8px; padding: 8px; border: 1.5px solid var(--gp-border); border-radius: 8px; font-family: inherit; font-size: .82rem; resize: vertical; min-height: 40px; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🏛 Mahasabha Applications</h1><p class="gp-header-sub">Admin Panel</p></div>
+  </div>
+
+  <div class="gp-wrap">
+    <p><a href="home.html">← होम पर वापस</a> &nbsp;|&nbsp; <a href="admin-features.html">🚦 Feature Flags</a></p>
+    <div id="amAlert" class="gp-alert"></div>
+
+    <div class="gp-toggle-tabs">
+      <button data-filter="all" class="active">सभी</button>
+      <button data-filter="Pending">⏳ Pending</button>
+      <button data-filter="Approved">✅ Approved</button>
+      <button data-filter="Rejected">❌ Rejected</button>
+    </div>
+
+    <div id="appList"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myRole = null;
+    let allApps = [];
+    let currentFilter = "all";
+
+    function fmtDate(d) {
+      if (!d) return "";
+      try { return new Date(d).toLocaleDateString("hi-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return d; }
+    }
+
+    async function loadApplications() {
+      const { data: apps, error } = await gpSupabase
+        .from("panchayat_memberships")
+        .select("*")
+        .eq("level", "Mahasabha")
+        .order("applied_at", { ascending: false });
+
+      if (error) { gpShowAlert("amAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+
+      const gahoiIds = [...new Set((apps || []).map((a) => a.member_gahoi_id))];
+      let personsMap = {};
+      if (gahoiIds.length) {
+        const { data: persons } = await gpSupabase
+          .from("persons")
+          .select("gahoi_id, name, mobile, email, city, akna")
+          .in("gahoi_id", gahoiIds);
+        (persons || []).forEach((p) => { personsMap[p.gahoi_id] = p; });
+      }
+
+      allApps = (apps || []).map((a) => ({ ...a, _person: personsMap[a.member_gahoi_id] || {} }));
+      renderList();
+    }
+
+    function renderList() {
+      const listEl = document.getElementById("appList");
+      listEl.innerHTML = "";
+      const filtered = currentFilter === "all" ? allApps : allApps.filter((a) => a.status === currentFilter);
+      if (filtered.length === 0) { listEl.innerHTML = `<div class="gp-empty">कोई application नहीं मिली।</div>`; return; }
+
+      filtered.forEach((a) => {
+        const p = a._person;
+        const fd = a.form_data || {};
+        const canDecide = myRole === "Admin" || ((myRole === "Approver" || myRole === "mahasabhaPrint") && a.status !== "Approved");
+        const card = document.createElement("div");
+        card.className = "gp-app-card";
+        card.innerHTML = `
+          <div class="gp-app-top">
+            <div>
+              <div class="gp-app-name">${p.name || a.member_gahoi_id}</div>
+              <div class="gp-app-meta">
+                📞 ${p.mobile || "—"} &nbsp;|&nbsp; 🏙 ${p.city || "—"} &nbsp;|&nbsp; 🏡 ${p.akna || "—"}<br>
+                Gahoi ID: ${a.member_gahoi_id} &nbsp;|&nbsp; Applied: ${fmtDate(a.applied_at)} &nbsp;|&nbsp; शुल्क: ₹${a.fee ?? "—"}
+              </div>
+            </div>
+            <span class="gp-status-badge gp-status-${a.status}">${a.status === "Approved" ? "✅ Approved" : a.status === "Rejected" ? "❌ Rejected" : "⏳ Pending"}</span>
+          </div>
+          <div class="gp-app-form">
+            <div><b>Panchayat:</b> ${fd.panchayat || "—"}</div>
+            <div><b>क्षेत्रीय:</b> ${fd.kshetra || "—"}</div>
+            <div><b>पिता/पति:</b> ${fd.fatherOrHusband || "—"}</div>
+            <div><b>व्यवसाय:</b> ${fd.vyavsay || "—"}</div>
+            <div><b>शिक्षा:</b> ${fd.shiksha || "—"}</div>
+            <div><b>DOB:</b> ${fd.dob || "—"}</div>
+          </div>
+          <div class="gp-checks">
+            <label><input type="checkbox" class="chk-received" ${a.payment_received ? "checked" : ""}> Payment प्राप्त</label>
+            <label><input type="checkbox" class="chk-forwarded" ${a.payment_forwarded ? "checked" : ""}> Payment Forwarded</label>
+            <label><input type="checkbox" class="chk-form-submitted" ${a.form_submitted ? "checked" : ""}> Form जमा</label>
+          </div>
+          <textarea class="gp-remarks" placeholder="Remarks...">${fd.remarks || ""}</textarea>
+          <div class="gp-app-actions">
+            ${canDecide && a.status !== "Approved" ? `<button class="gp-btn-approve" data-action="approve">✅ Approve करें</button>` : ""}
+            ${canDecide && a.status !== "Rejected" ? `<button class="gp-btn-reject" data-action="reject">❌ Reject करें</button>` : ""}
+            <button data-action="save-remarks">💾 Remarks/Checks Save करें</button>
+          </div>
+        `;
+
+        const chkReceived = card.querySelector(".chk-received");
+        const chkForwarded = card.querySelector(".chk-forwarded");
+        const chkFormSub = card.querySelector(".chk-form-submitted");
+        const remarksEl = card.querySelector(".gp-remarks");
+
+        chkReceived.addEventListener("change", () => updatePaymentStep(a, "payment_received", chkReceived.checked));
+        chkForwarded.addEventListener("change", () => updatePaymentStep(a, "payment_forwarded", chkForwarded.checked));
+        chkFormSub.addEventListener("change", () => updatePaymentStep(a, "form_submitted", chkFormSub.checked));
+
+        card.querySelectorAll("[data-action]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const action = btn.getAttribute("data-action");
+            if (action === "approve") await setDecision(a, "Approved", null);
+            else if (action === "reject") {
+              const reason = prompt("Reject करने का कारण (optional):", "");
+              await setDecision(a, "Rejected", reason || "");
+            } else if (action === "save-remarks") await saveRemarks(a, remarksEl.value.trim());
+          });
+        });
+
+        listEl.appendChild(card);
+      });
+    }
+
+    async function updatePaymentStep(app, column, value) {
+      const { data: { session } } = await gpSupabase.auth.getSession();
+      const patch = { [column]: value, [column + "_by"]: myGahoiIdOf(session), [column + "_at"]: new Date().toISOString() };
+      const { error } = await gpSupabase.from("panchayat_memberships").update(patch).eq("id", app.id);
+      if (error) { gpShowAlert("amAlert", "Save नहीं हो सका: " + error.message, "error"); return; }
+      await loadApplications();
+    }
+
+    function myGahoiIdOf() { return window.__gpMyGahoiId || null; }
+
+    async function saveRemarks(app, remarksText) {
+      // remarks/rejectedReason form_data jsonb के अंदर हैं (top-level column नहीं,
+      // देखें migration 0010) — इसलिए पहले मौजूदा form_data पढ़कर merge करना ज़रूरी है
+      const merged = { ...(app.form_data || {}), remarks: remarksText };
+      const { error } = await gpSupabase.from("panchayat_memberships").update({ form_data: merged }).eq("id", app.id);
+      if (error) { gpShowAlert("amAlert", "Remarks save नहीं हुए: " + error.message, "error"); return; }
+      gpShowAlert("amAlert", "✅ Save हो गया।", "success");
+      await loadApplications();
+    }
+
+    async function setDecision(app, status, rejectedReason) {
+      const merged = { ...(app.form_data || {}) };
+      if (status === "Rejected") merged.rejectedReason = rejectedReason;
+      const { data: { session } } = await gpSupabase.auth.getSession();
+      const patch = { status, form_data: merged, approved_by: window.__gpMyGahoiId, approved_at: new Date().toISOString() };
+      const { error } = await gpSupabase.from("panchayat_memberships").update(patch).eq("id", app.id);
+      if (error) { gpShowAlert("amAlert", "Update नहीं हो सका: " + error.message, "error"); return; }
+      gpShowAlert("amAlert", status === "Approved" ? "✅ Approve कर दिया गया।" : "❌ Reject कर दिया गया।", "success");
+      await loadApplications();
+    }
+
+    document.querySelectorAll(".gp-toggle-tabs button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".gp-toggle-tabs button").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentFilter = btn.getAttribute("data-filter");
+        renderList();
+      });
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      myRole = profile.role;
+      window.__gpMyGahoiId = profile.gahoi_id;
+      // RLS अब pm_select/update_mahasabha_print (migration 0016) से mahasabhaPrint
+      // को भी grant देती है — Admin/Approver वाला पुराना gap यहीं ठीक किया
+      if (myRole !== "Admin" && myRole !== "Approver" && myRole !== "mahasabhaPrint") {
+        window.location.href = "home.html";
+        return;
+      }
+      await loadApplications();
+    })();
+  </script>
+</body>
+</html>

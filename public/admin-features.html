@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feature Flags — गहोई पोर्टल Admin</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-admin-wrap { max-width: 700px; margin: 0 auto; padding: 20px; }
+    .gp-admin-nav { display: flex; gap: 16px; margin-bottom: 6px; font-size: .9rem; flex-wrap: wrap; }
+    .gp-admin-nav a { color: var(--gp-navy); font-weight: 600; text-decoration: none; }
+    .gp-admin-nav a:hover { text-decoration: underline; }
+    .gp-settings-group { background: var(--gp-card); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); padding: 20px; margin: 18px 0; }
+    .gp-settings-group h3 { margin-top: 0; color: var(--gp-navy); font-size: 1rem; }
+    .gp-settings-group p.gp-group-note { font-size: .82rem; color: var(--gp-text-muted); margin-top: -6px; margin-bottom: 16px; }
+    .gp-flag-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--gp-bg); }
+    .gp-flag-row:last-child { border-bottom: none; }
+    .gp-flag-label { font-size: .9rem; color: var(--gp-text); }
+    .gp-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .gp-switch input { opacity: 0; width: 0; height: 0; }
+    .gp-switch-track { position: absolute; inset: 0; background: #ccc; border-radius: 24px; cursor: pointer; transition: .2s; }
+    .gp-switch-track::before { content: ""; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+    .gp-switch input:checked + .gp-switch-track { background: var(--gp-success); }
+    .gp-switch input:checked + .gp-switch-track::before { transform: translateX(20px); }
+    .gp-maint-msg { width: 100%; padding: 9px 12px; border: 1.5px solid var(--gp-border); border-radius: 8px; font-size: .87rem; font-family: inherit; box-sizing: border-box; margin-top: 10px; }
+    .gp-save-bar { position: sticky; bottom: 0; background: #fff; border-top: 1.5px solid var(--gp-border); padding: 14px 20px; margin: 0 -20px; text-align: center; }
+    .gp-save-bar button { padding: 11px 32px; border: none; border-radius: 8px; font-weight: 700; background: var(--gp-gold); color: var(--gp-navy); cursor: pointer; font-size: .92rem; }
+    .gp-save-bar button:disabled { opacity: .5; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>गहोई पोर्टल — Admin</h1><p class="gp-header-sub">Feature Flags</p></div>
+  </div>
+
+  <div class="gp-admin-wrap">
+    <div class="gp-admin-nav">
+      <a href="home.html">← होम</a>
+      <a href="admin-pending.html">⏳ Pending Approvals</a>
+      <a href="admin-members.html">👥 All Members</a>
+      <a href="admin-settings.html">⚙️ Settings</a>
+    </div>
+
+    <div id="ffAlert" class="gp-alert"></div>
+    <div class="gp-loading" id="loadingState">Load हो रहा है...</div>
+
+    <form id="ffForm" style="display:none">
+      <div class="gp-settings-group">
+        <h3>🚦 पूरे Portal के लिए</h3>
+        <p class="gp-group-note">Maintenance mode चालू होने पर हर member को नीचे लिखा message दिखेगा (अभी सिर्फ़ नई pages पर लागू — home.html/matrimony/business जैसी पुरानी pages पर लागू करना बाक़ी है)।</p>
+        <div class="gp-flag-row">
+          <span class="gp-flag-label">🚧 Maintenance Mode</span>
+          <label class="gp-switch"><input type="checkbox" data-flag="portalMaintenanceMode"><span class="gp-switch-track"></span></label>
+        </div>
+        <textarea class="gp-maint-msg" id="maintMsg" rows="2" placeholder="सबको दिखने वाला custom message (ख़ाली छोड़ने पर default message दिखेगा)"></textarea>
+      </div>
+
+      <div class="gp-settings-group">
+        <h3>📄 Pages / Features</h3>
+        <div id="pageFlags"></div>
+      </div>
+
+      <div class="gp-settings-group">
+        <h3>💳 Online Payment Options</h3>
+        <p class="gp-group-note">बंद करने पर feature की page खुली रहेगी, बस "Pay Now" button छुप जाएगा और offline भुगतान का सुझाव दिखेगा — पूरा feature बंद नहीं होगा।</p>
+        <div id="paymentFlags"></div>
+      </div>
+
+      <div class="gp-save-bar">
+        <button type="button" id="saveBtn">सेव करें</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    const PAGE_FLAGS = {
+      businessEnabled: "🏢 Business Directory",
+      directoryEnabled: "📇 Member Directory",
+      jobsEnabled: "💼 Job Board",
+      matrimonyEnabled: "💑 Matrimony",
+      messagesEnabled: "✉️ Messages",
+      spaceEnabled: "💬 Gahoi Space",
+      eventsEnabled: "📅 Community Events",
+      galleryEnabled: "🖼 Gallery",
+      offersEnabled: "🎁 Current Offers",
+      magazinesEnabled: "📰 Magazine",
+      dharmshalaEnabled: "🛕 Dharmshala Directory",
+      mahasabhaEnabled: "🏛 Mahasabha Membership",
+      knownMembersEnabled: "🧑‍🤝‍🧑 Known Members",
+      referralsEnabled: "🤝 Referrals",
+      daanSevaEnabled: "🙏 Daan Seva",
+      privacyDashboardEnabled: "🔒 Privacy Dashboard",
+    };
+    const PAYMENT_FLAGS = {
+      mahasabhaOnlinePaymentEnabled: "🏛 Mahasabha Membership — Online Payment",
+      donationOnlinePaymentEnabled: "🙏 Daan Seva — Online Payment",
+    };
+
+    let currentFlags = {};
+
+    function renderSwitch(key, label) {
+      const checked = currentFlags[key] !== false; // डिफ़ॉल्ट चालू माना जाए अगर कभी key ही ना मिले
+      return `
+        <div class="gp-flag-row">
+          <span class="gp-flag-label">${label}</span>
+          <label class="gp-switch"><input type="checkbox" data-flag="${key}" ${checked ? "checked" : ""}><span class="gp-switch-track"></span></label>
+        </div>
+      `;
+    }
+
+    async function loadFlags() {
+      currentFlags = await gpGetSettingsDoc("featureFlags");
+
+      document.querySelector('[data-flag="portalMaintenanceMode"]').checked = currentFlags.portalMaintenanceMode === true;
+      document.getElementById("maintMsg").value = currentFlags.portalMaintenanceMessage || "";
+
+      document.getElementById("pageFlags").innerHTML = Object.entries(PAGE_FLAGS).map(([k, l]) => renderSwitch(k, l)).join("");
+      document.getElementById("paymentFlags").innerHTML = Object.entries(PAYMENT_FLAGS).map(([k, l]) => renderSwitch(k, l)).join("");
+
+      document.getElementById("loadingState").style.display = "none";
+      document.getElementById("ffForm").style.display = "block";
+    }
+
+    async function saveFlags() {
+      gpHideAlert("ffAlert");
+      const saveBtn = document.getElementById("saveBtn");
+      saveBtn.disabled = true;
+      saveBtn.textContent = "सेव हो रहा है...";
+
+      const featureFlags = {};
+      document.querySelectorAll("[data-flag]").forEach((el) => { featureFlags[el.getAttribute("data-flag")] = el.checked; });
+      featureFlags.portalMaintenanceMessage = document.getElementById("maintMsg").value.trim();
+
+      const result = await gpCallFunction("admin-update-settings", { docs: { featureFlags } });
+
+      saveBtn.disabled = false;
+      saveBtn.textContent = "सेव करें";
+
+      if (!result.success) { gpShowAlert("ffAlert", result.message || "Save असफल रहा।", "error"); return; }
+      gpShowAlert("ffAlert", "✅ Feature flags सेव हो गईं।", "success");
+    }
+
+    document.getElementById("saveBtn").addEventListener("click", saveFlags);
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.role !== "Admin") { window.location.href = "home.html"; return; }
+      await loadFlags();
+    })();
+  </script>
+</body>
+</html>

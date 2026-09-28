@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>मेरी Profile — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-profile-wrap { max-width: 560px; margin: 0 auto; padding: 20px; }
+    .gp-tier-strip {
+      display: flex; align-items: center; gap: 12px; background: var(--gp-card);
+      border-radius: var(--gp-radius-lg); padding: 16px 20px; box-shadow: var(--gp-shadow); margin-bottom: 18px;
+    }
+    .gp-tier-circle {
+      width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: .95rem; color: #fff; flex-shrink: 0;
+    }
+    .gp-tier-circle.Bronze { background: #b08d57; }
+    .gp-tier-circle.Silver { background: #8c96a3; }
+    .gp-tier-circle.Gold { background: linear-gradient(135deg,#e8a020,#7a5800); }
+    .gp-section {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 20px;
+      box-shadow: var(--gp-shadow); margin-bottom: 16px;
+    }
+    .gp-section h3 { margin: 0 0 14px; color: var(--gp-navy); font-size: 1rem; }
+    .gp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .gp-toggle-row {
+      display: flex; justify-content: space-between; align-items: center; padding: 8px 0;
+      border-bottom: 1px solid var(--gp-border); font-size: .9rem;
+    }
+    .gp-toggle-row:last-child { border-bottom: none; }
+    .gp-save-bar {
+      position: sticky; bottom: 0; background: var(--gp-bg); padding: 14px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>मेरी Profile</h1>
+      <p class="gp-header-sub">गहोई पोर्टल</p>
+    </div>
+  </div>
+
+  <div class="gp-profile-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+
+    <div class="gp-tier-strip">
+      <div class="gp-tier-circle Bronze" id="tierCircle">0%</div>
+      <div>
+        <div style="font-weight:700; color:var(--gp-navy)" id="tierLabel">Bronze Profile</div>
+        <div style="font-size:.82rem; color:var(--gp-text-muted)">ज़्यादा fields भरें, tier अपने-आप बढ़ेगा</div>
+      </div>
+    </div>
+
+    <div id="profileAlert" class="gp-alert"></div>
+
+    <form id="profileForm">
+      <div class="gp-section">
+        <h3>व्यवसाय</h3>
+        <div class="gp-row">
+          <div class="gp-field"><label>पेशा</label><input type="text" id="profession"></div>
+          <div class="gp-field"><label>पदनाम</label><input type="text" id="designation"></div>
+        </div>
+      </div>
+
+      <div class="gp-section">
+        <h3>पता</h3>
+        <div class="gp-field"><label>पूरा पता</label><input type="text" id="address"></div>
+        <div class="gp-field"><label>Pincode</label><input type="text" id="pincode" maxlength="6"></div>
+      </div>
+
+      <div class="gp-section">
+        <h3>व्यक्तिगत</h3>
+        <div class="gp-row">
+          <div class="gp-field"><label>जन्मदिन (MM-DD)</label><input type="text" id="bday" placeholder="01-15"></div>
+          <div class="gp-field"><label>Blood Group</label><input type="text" id="bloodGroup" placeholder="O+"></div>
+        </div>
+        <div class="gp-field">
+          <label>वैवाहिक स्थिति</label>
+          <select id="marital">
+            <option value="Unmarried">Unmarried</option>
+            <option value="Married">Married</option>
+            <option value="Widow">Widow</option>
+            <option value="Widower">Widower</option>
+            <option value="Divorcee">Divorcee</option>
+          </select>
+        </div>
+        <div class="gp-field" id="spouseField" style="display:none">
+          <label>जीवनसाथी का नाम</label><input type="text" id="spouse">
+        </div>
+        <div class="gp-field" id="anniField" style="display:none">
+          <label>Anniversary (MM-DD)</label><input type="text" id="anni" placeholder="02-20">
+        </div>
+      </div>
+
+      <div class="gp-section">
+        <h3>Bio और Social</h3>
+        <div class="gp-field"><label>About / Bio</label><input type="text" id="bio" maxlength="500"></div>
+        <div class="gp-field"><label>Hobbies</label><input type="text" id="hobbies"></div>
+        <div class="gp-row">
+          <div class="gp-field"><label>LinkedIn</label><input type="text" id="linkedin"></div>
+          <div class="gp-field"><label>Instagram</label><input type="text" id="instagram"></div>
+        </div>
+      </div>
+
+      <div class="gp-section">
+        <h3>🔐 Privacy Settings</h3>
+        <div class="gp-toggle-row">
+          <span>मोबाइल नंबर दिखाएं</span>
+          <select id="showMobile"><option value="yes">हाँ</option><option value="no">नहीं</option></select>
+        </div>
+        <div class="gp-toggle-row">
+          <span>Social Links दिखाएं</span>
+          <select id="privSocial"><option value="visible">हाँ</option><option value="hidden">नहीं</option></select>
+        </div>
+        <div class="gp-toggle-row">
+          <span>जन्मदिन दिखाएं</span>
+          <select id="privBirthday"><option value="visible">हाँ</option><option value="hidden">नहीं</option></select>
+        </div>
+      </div>
+
+      <div class="gp-save-bar">
+        <button type="submit" class="gp-btn" id="saveBtn">Save करें</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myProfile = null;
+
+    function updateTierDisplay(tier, pct) {
+      const circle = document.getElementById("tierCircle");
+      circle.className = "gp-tier-circle " + tier;
+      circle.textContent = pct + "%";
+      document.getElementById("tierLabel").textContent = tier + " Profile";
+    }
+
+    function toggleMaritalFields() {
+      const married = document.getElementById("marital").value !== "Unmarried";
+      document.getElementById("spouseField").style.display = married ? "block" : "none";
+      document.getElementById("anniField").style.display = married ? "block" : "none";
+    }
+
+    function fillForm(p) {
+      const profile = p.profile || {};
+      const privacy = p.privacy_settings || {};
+      document.getElementById("profession").value = p.profession || "";
+      document.getElementById("designation").value = p.designation || "";
+      document.getElementById("address").value = p.address || "";
+      document.getElementById("pincode").value = p.pincode || "";
+      document.getElementById("bday").value = p.bday || "";
+      document.getElementById("bloodGroup").value = p.blood_group || "";
+      document.getElementById("marital").value = p.marital || "Unmarried";
+      document.getElementById("spouse").value = p.spouse || "";
+      document.getElementById("anni").value = p.anni || "";
+      document.getElementById("bio").value = profile.bio || "";
+      document.getElementById("hobbies").value = profile.hobbies || "";
+      document.getElementById("linkedin").value = profile.linkedin || "";
+      document.getElementById("instagram").value = profile.instagram || "";
+      document.getElementById("showMobile").value = p.show_mobile || "yes";
+      document.getElementById("privSocial").value = privacy.socialLinks === "hidden" ? "hidden" : "visible";
+      document.getElementById("privBirthday").value = privacy.birthday === "hidden" ? "hidden" : "visible";
+      toggleMaritalFields();
+      updateTierDisplay(p.profile_tier || "Bronze", p.completion_percent || 0);
+    }
+
+    document.getElementById("marital").addEventListener("change", toggleMaritalFields);
+
+    document.getElementById("profileForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("profileAlert");
+      const btn = document.getElementById("saveBtn");
+      btn.disabled = true;
+      btn.textContent = "Save हो रहा है...";
+
+      const marital = document.getElementById("marital").value;
+      const updatedProfile = {
+        ...(myProfile.profile || {}),
+        bio: document.getElementById("bio").value.trim().slice(0, 500),
+        hobbies: document.getElementById("hobbies").value.trim(),
+        linkedin: document.getElementById("linkedin").value.trim(),
+        instagram: document.getElementById("instagram").value.trim(),
+      };
+      const updatedPrivacy = {
+        ...(myProfile.privacy_settings || {}),
+        socialLinks: document.getElementById("privSocial").value,
+        birthday: document.getElementById("privBirthday").value,
+      };
+
+      // ⚠️ ध्यान दें: status/role/gahoi_id यहाँ भेजे भी जाएं तो कोई असर नहीं होगा —
+      // trigger a_protect_privileged_fields (migration 0007) इन्हें हमेशा पुरानी value पर वापस कर देता है
+      const { data, error } = await gpSupabase
+        .from("persons")
+        .update({
+          profession: document.getElementById("profession").value.trim(),
+          designation: document.getElementById("designation").value.trim(),
+          address: document.getElementById("address").value.trim(),
+          pincode: document.getElementById("pincode").value.trim(),
+          bday: document.getElementById("bday").value.trim(),
+          blood_group: document.getElementById("bloodGroup").value.trim(),
+          marital,
+          spouse: marital !== "Unmarried" ? document.getElementById("spouse").value.trim() : "",
+          anni: marital !== "Unmarried" ? document.getElementById("anni").value.trim() : "",
+          show_mobile: document.getElementById("showMobile").value,
+          profile: updatedProfile,
+          privacy_settings: updatedPrivacy,
+        })
+        .eq("gahoi_id", myProfile.gahoi_id)
+        .select()
+        .single();
+
+      btn.disabled = false;
+      btn.textContent = "Save करें";
+
+      if (error) {
+        gpShowAlert("profileAlert", "Save नहीं हो सका: " + error.message, "error");
+        return;
+      }
+
+      myProfile = data;
+      updateTierDisplay(data.profile_tier, data.completion_percent);
+      gpShowAlert("profileAlert", "✅ Profile update हो गई!", "success");
+      window.scrollTo(0, 0);
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      myProfile = await gpGetMyProfile();
+      if (!myProfile) { window.location.href = "complete-profile.html"; return; }
+      fillForm(myProfile);
+    })();
+  </script>
+</body>
+</html>

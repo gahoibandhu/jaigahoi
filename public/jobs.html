@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Board — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-biz-wrap { max-width: 800px; margin: 0 auto; padding: 20px; }
+    .gp-toggle-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    .gp-toggle-tabs button {
+      padding: 9px 18px; border-radius: 8px; border: 1.5px solid var(--gp-border);
+      background: #fff; cursor: pointer; font-weight: 700; font-size: .88rem;
+    }
+    .gp-toggle-tabs button.active { background: var(--gp-navy); color: #fff; border-color: var(--gp-navy); }
+    .gp-biz-card {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 18px;
+      box-shadow: var(--gp-shadow); margin-bottom: 12px;
+    }
+    .gp-biz-firm { font-weight: 700; color: var(--gp-navy); }
+    .gp-biz-meta { font-size: .84rem; color: var(--gp-text-muted); line-height: 1.7; margin-top: 3px; }
+    .gp-job-tag {
+      display: inline-block; font-size: .72rem; font-weight: 700; padding: 2px 9px;
+      border-radius: 10px; background: var(--gp-warning-bg); color: var(--gp-gold-dark); margin-left: 6px;
+    }
+    .gp-biz-delete { font-size: .78rem; color: var(--gp-error); background: none; border: none; cursor: pointer; margin-top: 8px; padding: 0; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>💼 Job Board</h1><p class="gp-header-sub">गहोई पोर्टल</p></div>
+  </div>
+
+  <div class="gp-biz-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+
+    <div class="gp-toggle-tabs">
+      <button id="browseTab" class="active">📋 Browse करें</button>
+      <button id="postTab">➕ नई Job Post करें</button>
+    </div>
+
+    <div id="jobAlert" class="gp-alert"></div>
+
+    <div id="browseSection">
+      <div id="jobList"></div>
+    </div>
+
+    <div id="postSection" style="display:none">
+      <div style="background:var(--gp-card); border-radius:var(--gp-radius-lg); padding:20px; box-shadow:var(--gp-shadow)">
+        <form id="jobForm">
+          <div class="gp-field"><label>पद (Title) *</label><input type="text" id="title" required></div>
+          <div class="gp-field"><label>कंपनी *</label><input type="text" id="company" required></div>
+          <div class="gp-field"><label>Location *</label><input type="text" id="location" required></div>
+          <div class="gp-field">
+            <label>Type</label>
+            <select id="type"><option value="Full-time">Full-time</option><option value="Part-time">Part-time</option><option value="Internship">Internship</option><option value="Remote">Remote</option></select>
+          </div>
+          <div class="gp-field"><label>Salary</label><input type="text" id="salary"></div>
+          <div class="gp-field"><label>Experience</label><input type="text" id="exp"></div>
+          <div class="gp-field"><label>विवरण *</label><input type="text" id="description" required></div>
+          <div class="gp-field"><label>संपर्क मोबाइल</label><input type="tel" id="mobile" maxlength="10"></div>
+          <div class="gp-field"><label>संपर्क Email</label><input type="email" id="email"></div>
+          <div class="gp-hint" style="margin-bottom:14px">मोबाइल या Email — कम से कम एक ज़रूरी है</div>
+          <button type="submit" class="gp-btn" id="jobSubmitBtn">Job Post करें</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myGahoiId = null;
+    let myRole = null;
+    const SIXTY_DAYS_MS = 60 * 86400000;
+
+    async function loadJobs() {
+      const { data, error } = await gpSupabase
+        .from("jobs")
+        .select("*")
+        .is("deleted_at", null)
+        .order("posted_at", { ascending: false });
+
+      const listEl = document.getElementById("jobList");
+      listEl.innerHTML = "";
+      if (error) { gpShowAlert("jobAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+
+      // 60-दिन से पुराने jobs अपने-आप hide (मौजूदा Code.gs जैसा — auto-expiry, hard-delete नहीं)
+      const active = (data || []).filter((j) => (Date.now() - new Date(j.posted_at).getTime()) < SIXTY_DAYS_MS);
+
+      if (active.length === 0) { listEl.innerHTML = `<div class="gp-empty">अभी कोई active job नहीं है — पहली आप डालें!</div>`; return; }
+
+      active.forEach((j) => {
+        const canDelete = j.posted_by === myGahoiId || myRole === "Admin" || myRole === "Approver";
+        const card = document.createElement("div");
+        card.className = "gp-biz-card";
+        card.innerHTML = `
+          <div class="gp-biz-firm">${j.title}<span class="gp-job-tag">${j.type || "Full-time"}</span></div>
+          <div class="gp-biz-meta">
+            🏢 ${j.company} &nbsp;|&nbsp; 📍 ${j.location}<br>
+            ${j.salary ? "💰 " + j.salary + "<br>" : ""}
+            ${j.exp ? "📊 Experience: " + j.exp + "<br>" : ""}
+            ${j.description}<br>
+            ${j.mobile ? "📞 " + j.mobile + " " : ""}${j.email ? "📧 " + j.email : ""}
+          </div>
+          ${canDelete ? `<button class="gp-biz-delete" data-id="${j.id}">🗑 हटाएं</button>` : ""}
+        `;
+        listEl.appendChild(card);
+      });
+
+      listEl.querySelectorAll(".gp-biz-delete").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("क्या आप वाकई इस job को हटाना चाहते हैं?")) return;
+          const { error } = await gpSupabase
+            .from("jobs")
+            .update({ deleted_at: new Date().toISOString(), deleted_by: myGahoiId })
+            .eq("id", btn.getAttribute("data-id"));
+          if (error) { gpShowAlert("jobAlert", "हटाया नहीं जा सका: " + error.message, "error"); return; }
+          loadJobs();
+        });
+      });
+    }
+
+    document.getElementById("browseTab").addEventListener("click", () => {
+      document.getElementById("browseTab").classList.add("active");
+      document.getElementById("postTab").classList.remove("active");
+      document.getElementById("browseSection").style.display = "block";
+      document.getElementById("postSection").style.display = "none";
+    });
+    document.getElementById("postTab").addEventListener("click", () => {
+      document.getElementById("postTab").classList.add("active");
+      document.getElementById("browseTab").classList.remove("active");
+      document.getElementById("postSection").style.display = "block";
+      document.getElementById("browseSection").style.display = "none";
+    });
+
+    document.getElementById("jobForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("jobAlert");
+
+      const mobile = document.getElementById("mobile").value.trim();
+      const email = document.getElementById("email").value.trim();
+      if (!mobile && !email) {
+        gpShowAlert("jobAlert", "संपर्क मोबाइल या Email में से कम से कम एक भरें।", "error");
+        return;
+      }
+
+      const btn = document.getElementById("jobSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "Post हो रहा है...";
+
+      const { error } = await gpSupabase.from("jobs").insert({
+        posted_by: myGahoiId,
+        title: document.getElementById("title").value.trim(),
+        company: document.getElementById("company").value.trim(),
+        location: document.getElementById("location").value.trim(),
+        type: document.getElementById("type").value,
+        salary: document.getElementById("salary").value.trim(),
+        exp: document.getElementById("exp").value.trim(),
+        description: document.getElementById("description").value.trim(),
+        mobile,
+        email,
+      });
+
+      btn.disabled = false;
+      btn.textContent = "Job Post करें";
+
+      if (error) { gpShowAlert("jobAlert", "Post नहीं हो सका: " + error.message, "error"); return; }
+      document.getElementById("jobForm").reset();
+      document.getElementById("browseTab").click();
+      loadJobs();
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("jobsEnabled", "Job Board"))) return;
+      myGahoiId = profile.gahoi_id;
+      myRole = profile.role;
+      await loadJobs();
+    })();
+  </script>
+</body>
+</html>

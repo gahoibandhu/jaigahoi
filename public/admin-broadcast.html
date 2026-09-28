@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Broadcast Email — गहोई पोर्टल Admin</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-admin-wrap { max-width: 640px; margin: 0 auto; padding: 20px; }
+    .gp-admin-nav { display: flex; gap: 16px; margin-bottom: 6px; font-size: .9rem; flex-wrap: wrap; }
+    .gp-admin-nav a { color: var(--gp-navy); font-weight: 600; text-decoration: none; }
+    .gp-form-card { background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 20px; box-shadow: var(--gp-shadow); margin-top: 16px; }
+    .gp-form-card textarea { width: 100%; padding: 9px 12px; border: 1.5px solid var(--gp-border); border-radius: 8px; font-family: inherit; font-size: .87rem; box-sizing: border-box; min-height: 160px; }
+    .gp-warn-note { background: var(--gp-warning-bg); border: 1px solid var(--gp-warning-border); border-radius: var(--gp-radius); padding: 12px 16px; font-size: .85rem; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>📣 Broadcast Email</h1><p class="gp-header-sub">Admin Panel</p></div>
+  </div>
+
+  <div class="gp-admin-wrap">
+    <div class="gp-admin-nav">
+      <a href="home.html">← होम</a>
+      <a href="admin-members.html">👥 All Members</a>
+      <a href="admin-features.html">🚦 Feature Flags</a>
+    </div>
+
+    <div id="bcAlert" class="gp-alert"></div>
+    <div class="gp-warn-note">⚠️ यह email सभी <b>Approved</b> members को जाएगी (जब तक नीचे कोई specific GahoiId ना दें)। भेजने से पहले ध्यान से पढ़ें — यह वापस नहीं ली जा सकती।</div>
+
+    <div class="gp-form-card">
+      <div class="gp-field"><label>Subject *</label><input type="text" id="subject"></div>
+      <div class="gp-field">
+        <label>Body *</label>
+        <textarea id="body" placeholder="अपना message यहाँ लिखें..."></textarea>
+      </div>
+      <div class="gp-field">
+        <label>सिर्फ़ इन GahoiIds को भेजें (optional, comma-separated)</label>
+        <input type="text" id="targetIds" placeholder="ख़ाली छोड़ने पर सभी Approved members को जाएगी">
+      </div>
+      <button class="gp-btn" id="sendBtn">📤 Broadcast भेजें</button>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    document.getElementById("sendBtn").addEventListener("click", async () => {
+      gpHideAlert("bcAlert");
+      const subject = document.getElementById("subject").value.trim();
+      const bodyText = document.getElementById("body").value.trim();
+      const targetIdsRaw = document.getElementById("targetIds").value.trim();
+
+      if (!subject || !bodyText) { gpShowAlert("bcAlert", "Subject और Body दोनों ज़रूरी हैं।", "error"); return; }
+
+      const targetGahoiIds = targetIdsRaw ? targetIdsRaw.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean) : [];
+      const confirmMsg = targetGahoiIds.length
+        ? `${targetGahoiIds.length} selected member(s) को भेजें?`
+        : "सभी Approved members को भेजें? यह वापस नहीं ली जा सकती।";
+      if (!confirm(confirmMsg)) return;
+
+      const btn = document.getElementById("sendBtn");
+      btn.disabled = true;
+      btn.textContent = "भेजा जा रहा है...";
+
+      const result = await gpCallFunction("broadcast-email", { subject, body: bodyText, targetGahoiIds });
+
+      btn.disabled = false;
+      btn.textContent = "📤 Broadcast भेजें";
+
+      if (!result.success) { gpShowAlert("bcAlert", result.message || "Broadcast असफल रहा।", "error"); return; }
+      gpShowAlert("bcAlert", `✅ भेजी गई: ${result.sent} members${result.failed ? `, असफल: ${result.failed}` : ""}`, "success");
+      document.getElementById("subject").value = "";
+      document.getElementById("body").value = "";
+      document.getElementById("targetIds").value = "";
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.role !== "Admin" && profile.role !== "Approver") { window.location.href = "home.html"; return; }
+    })();
+  </script>
+</body>
+</html>

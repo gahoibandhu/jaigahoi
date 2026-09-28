@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pending Approvals — गहोई पोर्टल Admin</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-admin-wrap { max-width: 720px; margin: 0 auto; padding: 24px 20px; }
+    .gp-admin-wrap h2 { color: var(--gp-navy); }
+    .gp-pending-card {
+      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 18px 20px;
+      box-shadow: var(--gp-shadow); margin-bottom: 14px;
+    }
+    .gp-pending-card .gp-pc-header { display: flex; justify-content: space-between; align-items: start; }
+    .gp-pending-card .gp-pc-name { font-weight: 700; font-size: 1.05rem; color: var(--gp-navy); }
+    .gp-pending-card .gp-pc-meta { font-size: .85rem; color: var(--gp-text-muted); margin-top: 4px; line-height: 1.7; }
+    .gp-pc-akna-warning { color: var(--gp-gold-dark); font-size: .82rem; margin-top: 6px; }
+    .gp-pc-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .gp-pc-actions button {
+      flex: 1; padding: 9px; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; font-size: .88rem;
+    }
+    .gp-btn-approve { background: var(--gp-success); color: #fff; }
+    .gp-btn-reject { background: #fff; color: var(--gp-error); border: 1.5px solid #f5c6c2 !important; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div>
+      <h1>गहोई पोर्टल — Admin</h1>
+      <p class="gp-header-sub">Pending Approvals</p>
+    </div>
+  </div>
+
+  <div class="gp-admin-wrap">
+    <p><a href="home.html">← होम पर वापस</a> &nbsp;|&nbsp; <a href="admin-members.html">All Members →</a></p>
+    <h2>⏳ Pending Approvals</h2>
+    <div id="pendingAlert" class="gp-alert"></div>
+    <div id="pendingList"></div>
+    <div class="gp-empty" id="emptyState" style="display:none">🎉 कोई pending approval नहीं है — सब clear है!</div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myRole = null;
+
+    async function loadPending() {
+      const { data, error } = await gpSupabase
+        .from("persons")
+        .select("gahoi_id, name, father, mobile, email, city, native, akna, profession, created_at")
+        .eq("status", "Pending")
+        .order("created_at", { ascending: true });
+
+      const listEl = document.getElementById("pendingList");
+      listEl.innerHTML = "";
+
+      if (error) {
+        gpShowAlert("pendingAlert", "List load नहीं हो सकी: " + error.message, "error");
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        document.getElementById("emptyState").style.display = "block";
+        return;
+      }
+      document.getElementById("emptyState").style.display = "none";
+
+      // Akna-recognition check — akna_list के against (frontend पर सिर्फ़ badge दिखाने के लिए,
+      // असली validation Edge Function में register के वक़्त हो चुकी होती है)
+      const { data: aknaData } = await gpSupabase.from("akna_list").select("hindi").eq("active", true);
+      const knownAknas = new Set((aknaData || []).map((a) => a.hindi.trim()));
+
+      data.forEach((p) => {
+        const aknaKnown = knownAknas.has((p.akna || "").trim());
+        const card = document.createElement("div");
+        card.className = "gp-pending-card";
+        card.innerHTML = `
+          <div class="gp-pc-header">
+            <div>
+              <div class="gp-pc-name">${p.name}</div>
+              <div class="gp-pc-meta">
+                👤 पिता: ${p.father || "—"} &nbsp;|&nbsp; 📱 ${p.mobile || "—"}<br>
+                📧 ${p.email || "—"}<br>
+                🏙 ${p.city || "—"} &nbsp;|&nbsp; 🌍 ${p.native || "—"} &nbsp;|&nbsp; 🏡 ${p.akna || "—"}
+              </div>
+              ${!aknaKnown ? `<div class="gp-pc-akna-warning">⚠ Akna हमारी list में नहीं मिला — पुष्टि करें</div>` : ""}
+            </div>
+          </div>
+          <div class="gp-pc-actions">
+            <button class="gp-btn-approve" data-id="${p.gahoi_id}" data-action="Approved">✅ Approve</button>
+            <button class="gp-btn-reject" data-id="${p.gahoi_id}" data-action="Rejected">❌ Reject</button>
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+
+      document.querySelectorAll(".gp-pc-actions button").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          const targetGahoiId = btn.getAttribute("data-id");
+          const status = btn.getAttribute("data-action");
+          const result = await gpCallFunction("approve-member", { targetGahoiId, status });
+          if (!result.success) {
+            gpShowAlert("pendingAlert", result.message || "Action असफल रही।", "error");
+            btn.disabled = false;
+            return;
+          }
+          loadPending();   // list refresh
+        });
+      });
+    }
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+
+      myRole = profile.role;
+      if (myRole !== "Admin" && myRole !== "Approver") {
+        window.location.href = "home.html";
+        return;
+      }
+
+      await loadPending();
+    })();
+  </script>
+</body>
+</html>

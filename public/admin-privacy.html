@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy & Compliance — गहोई पोर्टल Admin</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-admin-wrap { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .gp-admin-nav { display: flex; gap: 16px; margin-bottom: 6px; font-size: .9rem; flex-wrap: wrap; }
+    .gp-admin-nav a { color: var(--gp-navy); font-weight: 600; text-decoration: none; }
+    .gp-toggle-tabs { display: flex; gap: 8px; margin: 14px 0 18px; flex-wrap: wrap; }
+    .gp-toggle-tabs button { padding: 8px 16px; border-radius: 8px; border: 1.5px solid var(--gp-border); background: #fff; cursor: pointer; font-weight: 700; font-size: .82rem; }
+    .gp-toggle-tabs button.active { background: var(--gp-navy); color: #fff; border-color: var(--gp-navy); }
+    .gp-card { background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 18px; box-shadow: var(--gp-shadow); margin-bottom: 12px; }
+    .gp-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+    .gp-card-id { font-weight: 700; color: var(--gp-navy); }
+    .gp-status-badge { padding: 3px 12px; border-radius: 14px; font-size: .74rem; font-weight: 700; white-space: nowrap; }
+    .gp-status-Open, .gp-severity-Low { background: var(--gp-warning-bg); color: var(--gp-gold-dark); }
+    .gp-status-InProgress, .gp-severity-Medium { background: #e3f2fd; color: #1565c0; }
+    .gp-status-Closed { background: #e8f5ee; color: var(--gp-success); }
+    .gp-severity-High, .gp-severity-Critical { background: #fdecea; color: var(--gp-error); }
+    .gp-card-meta { font-size: .82rem; color: var(--gp-text-muted); margin: 6px 0; }
+    .gp-card-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 10px; }
+    .gp-card-form select, .gp-card-form input, .gp-card-form textarea { padding: 7px 10px; border: 1.5px solid var(--gp-border); border-radius: 7px; font-size: .82rem; font-family: inherit; }
+    .gp-card-form textarea { grid-column: 1 / -1; min-height: 50px; }
+    .gp-card-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
+    .gp-card-actions button { font-size: .8rem; padding: 6px 16px; border-radius: 8px; border: none; background: var(--gp-gold); color: var(--gp-navy); font-weight: 700; cursor: pointer; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 30px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🔒 Privacy & Compliance</h1><p class="gp-header-sub">Admin Panel — DPDP Act</p></div>
+  </div>
+
+  <div class="gp-admin-wrap">
+    <div class="gp-admin-nav">
+      <a href="home.html">← होम</a>
+      <a href="admin-members.html">👥 All Members</a>
+      <a href="admin-features.html">🚦 Feature Flags</a>
+      <a href="admin-settings.html">⚙️ Settings</a>
+    </div>
+
+    <div id="pvAlert" class="gp-alert"></div>
+
+    <div class="gp-toggle-tabs">
+      <button id="requestsTab" class="active">📋 Data Requests</button>
+      <button id="incidentsTab" style="display:none">🚨 Security Incidents</button>
+    </div>
+
+    <div id="requestsSection"><div id="reqList"></div></div>
+    <div id="incidentsSection" style="display:none"><div id="incList"></div></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myGahoiId = null;
+    let myRole = null;
+
+    function fmtDate(d) {
+      if (!d) return "—";
+      try { return new Date(d).toLocaleDateString("hi-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return d; }
+    }
+
+    async function loadRequests() {
+      const { data, error } = await gpSupabase.from("data_requests").select("*").order("received_at", { ascending: false });
+      const listEl = document.getElementById("reqList");
+      listEl.innerHTML = "";
+      if (error) { gpShowAlert("pvAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+      if (!data || data.length === 0) { listEl.innerHTML = `<div class="gp-empty">कोई data request नहीं है।</div>`; return; }
+
+      data.forEach((r) => {
+        const card = document.createElement("div");
+        card.className = "gp-card";
+        card.innerHTML = `
+          <div class="gp-card-top">
+            <span class="gp-card-id">${r.request_id} — ${r.user_gahoi_id}</span>
+            <span class="gp-status-badge gp-status-${r.status}">${r.status}</span>
+          </div>
+          <div class="gp-card-meta"><b>${r.request_type}</b> · डाली गई: ${fmtDate(r.received_at)}<br>${r.request_description || ""}</div>
+          <div class="gp-card-form">
+            <select class="f-status">
+              <option value="Open" ${r.status === "Open" ? "selected" : ""}>Open</option>
+              <option value="InProgress" ${r.status === "InProgress" ? "selected" : ""}>In Progress</option>
+              <option value="Closed" ${r.status === "Closed" ? "selected" : ""}>Closed</option>
+            </select>
+            <input type="text" class="f-assigned" placeholder="Assigned To (GahoiId)" value="${r.assigned_to || ""}">
+            <textarea class="f-action" placeholder="Action Taken / Closure Reason">${r.action_taken || ""}</textarea>
+          </div>
+          <div class="gp-card-actions"><button data-id="${r.id}">💾 Save करें</button></div>
+        `;
+        card.querySelector("button").addEventListener("click", async () => {
+          const status = card.querySelector(".f-status").value;
+          const patch = {
+            status,
+            assigned_to: card.querySelector(".f-assigned").value.trim() || null,
+            action_taken: card.querySelector(".f-action").value.trim(),
+          };
+          if (status === "Closed") { patch.closed_at = new Date().toISOString(); patch.closure_reason = patch.action_taken; }
+          const { error } = await gpSupabase.from("data_requests").update(patch).eq("id", r.id);
+          if (error) { gpShowAlert("pvAlert", "Save नहीं हुआ: " + error.message, "error"); return; }
+          gpShowAlert("pvAlert", "✅ Save हो गया।", "success");
+          await loadRequests();
+        });
+        listEl.appendChild(card);
+      });
+    }
+
+    async function loadIncidents() {
+      const { data, error } = await gpSupabase.from("security_incidents").select("*").order("date_time", { ascending: false });
+      const listEl = document.getElementById("incList");
+      listEl.innerHTML = "";
+      if (error) { gpShowAlert("pvAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+
+      const formHtml = `
+        <div class="gp-card">
+          <b style="color:var(--gp-navy)">नया Incident दर्ज करें</b>
+          <div class="gp-card-form">
+            <input type="text" id="newModule" placeholder="Affected Module">
+            <input type="text" id="newRecords" placeholder="Affected Records">
+            <select id="newSeverity">
+              <option value="Low">Low</option><option value="Medium">Medium</option>
+              <option value="High">High</option><option value="Critical">Critical</option>
+            </select>
+            <input type="text" id="newOwner" placeholder="Responsible Owner (GahoiId)">
+            <textarea id="newAction" placeholder="Immediate Action"></textarea>
+          </div>
+          <div class="gp-card-actions"><button id="addIncBtn">➕ दर्ज करें</button></div>
+        </div>
+      `;
+      listEl.innerHTML = formHtml;
+      document.getElementById("addIncBtn").addEventListener("click", async () => {
+        const { error } = await gpSupabase.from("security_incidents").insert({
+          affected_module: document.getElementById("newModule").value.trim(),
+          affected_records: document.getElementById("newRecords").value.trim(),
+          severity: document.getElementById("newSeverity").value,
+          responsible_owner: document.getElementById("newOwner").value.trim() || null,
+          immediate_action: document.getElementById("newAction").value.trim(),
+          reported_by: myGahoiId,
+        });
+        if (error) { gpShowAlert("pvAlert", "दर्ज नहीं हो सका: " + error.message, "error"); return; }
+        await loadIncidents();
+      });
+
+      (data || []).forEach((inc) => {
+        const card = document.createElement("div");
+        card.className = "gp-card";
+        card.innerHTML = `
+          <div class="gp-card-top">
+            <span class="gp-card-id">${inc.incident_id}</span>
+            <span class="gp-status-badge gp-severity-${inc.severity}">${inc.severity || "—"}</span>
+          </div>
+          <div class="gp-card-meta">
+            📅 ${fmtDate(inc.date_time)} · Module: ${inc.affected_module || "—"} · Records: ${inc.affected_records || "—"}<br>
+            Action: ${inc.immediate_action || "—"} ${inc.closure_date ? "· Closed: " + fmtDate(inc.closure_date) : ""}
+          </div>
+          ${!inc.closure_date ? `<div class="gp-card-actions"><button data-id="${inc.id}" class="close-inc">✅ Close करें</button></div>` : ""}
+        `;
+        const closeBtn = card.querySelector(".close-inc");
+        if (closeBtn) closeBtn.addEventListener("click", async () => {
+          const { error } = await gpSupabase.from("security_incidents").update({ closure_date: new Date().toISOString() }).eq("id", inc.id);
+          if (error) { gpShowAlert("pvAlert", "Close नहीं हुआ: " + error.message, "error"); return; }
+          await loadIncidents();
+        });
+        listEl.appendChild(card);
+      });
+    }
+
+    document.getElementById("requestsTab").addEventListener("click", () => {
+      document.getElementById("requestsTab").classList.add("active");
+      document.getElementById("incidentsTab").classList.remove("active");
+      document.getElementById("requestsSection").style.display = "block";
+      document.getElementById("incidentsSection").style.display = "none";
+    });
+    document.getElementById("incidentsTab").addEventListener("click", () => {
+      document.getElementById("incidentsTab").classList.add("active");
+      document.getElementById("requestsTab").classList.remove("active");
+      document.getElementById("incidentsSection").style.display = "block";
+      document.getElementById("requestsSection").style.display = "none";
+      loadIncidents();
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      myRole = profile.role;
+      myGahoiId = profile.gahoi_id;
+      // data_requests: is_approver_or_admin() पढ़/लिख सकते हैं। security_incidents: is_admin() सिर्फ़
+      if (myRole !== "Admin" && myRole !== "Approver") { window.location.href = "home.html"; return; }
+      if (myRole === "Admin") document.getElementById("incidentsTab").style.display = "inline-block";
+      await loadRequests();
+    })();
+  </script>
+</body>
+</html>

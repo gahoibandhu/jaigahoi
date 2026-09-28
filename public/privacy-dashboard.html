@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Dashboard — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-wrap { max-width: 700px; margin: 0 auto; padding: 20px; }
+    .gp-toggle-tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+    .gp-toggle-tabs button {
+      padding: 9px 16px; border-radius: 8px; border: 1.5px solid var(--gp-border);
+      background: #fff; cursor: pointer; font-weight: 700; font-size: .85rem;
+    }
+    .gp-toggle-tabs button.active { background: var(--gp-navy); color: #fff; border-color: var(--gp-navy); }
+    .gp-req-card { background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 14px 18px; box-shadow: var(--gp-shadow); margin-bottom: 10px; }
+    .gp-req-top { display: flex; justify-content: space-between; align-items: center; }
+    .gp-req-id { font-weight: 700; color: var(--gp-navy); font-size: .88rem; }
+    .gp-status-badge { padding: 3px 12px; border-radius: 14px; font-size: .74rem; font-weight: 700; }
+    .gp-status-Open { background: var(--gp-warning-bg); color: var(--gp-gold-dark); }
+    .gp-status-InProgress { background: #e3f2fd; color: #1565c0; }
+    .gp-status-Closed { background: #e8f5ee; color: var(--gp-success); }
+    .gp-req-meta { font-size: .82rem; color: var(--gp-text-muted); margin-top: 6px; }
+    .gp-doc-card { background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 18px; box-shadow: var(--gp-shadow); margin-bottom: 10px; }
+    .gp-doc-title { font-weight: 700; color: var(--gp-navy); }
+    .gp-doc-meta { font-size: .78rem; color: var(--gp-text-muted); margin: 4px 0 8px; }
+    .gp-doc-content { font-size: .85rem; color: var(--gp-text); max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+    .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 30px 0; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🔒 Privacy Dashboard</h1><p class="gp-header-sub">गहोई पोर्टल — DPDP Act</p></div>
+  </div>
+
+  <div class="gp-wrap">
+    <p><a href="home.html">← होम पर वापस</a></p>
+    <div id="pdAlert" class="gp-alert"></div>
+
+    <div class="gp-toggle-tabs">
+      <button id="requestsTab" class="active">📋 मेरी Requests</button>
+      <button id="newReqTab">➕ नई Request</button>
+      <button id="docsTab">📄 Privacy Documents</button>
+    </div>
+
+    <div id="requestsSection"><div id="reqList"></div></div>
+
+    <div id="newReqSection" style="display:none">
+      <div class="gp-section" style="background:var(--gp-card); border-radius:var(--gp-radius-lg); padding:20px; box-shadow:var(--gp-shadow)">
+        <p style="font-size:.85rem;color:var(--gp-text-muted);margin-top:0">DPDP Act, 2023 के तहत आपको अपना data access/correct/delete करने का अधिकार है। नीचे request डालें — हमारी टीम इसे process करेगी।</p>
+        <form id="reqForm">
+          <div class="gp-field">
+            <label>Request का प्रकार *</label>
+            <select id="requestType" required>
+              <option value="">-- चुनें --</option>
+              <option value="access">📂 Access — मेरा data दिखाएं</option>
+              <option value="correction">✏️ Correction — ग़लत जानकारी सुधारें</option>
+              <option value="deletion">🗑 Deletion — मेरा account/data हटाएं</option>
+              <option value="consentWithdrawal">🚫 Consent Withdrawal</option>
+              <option value="profileRestriction">🔒 Profile Restriction</option>
+              <option value="matrimonyProfilePause">💑 Matrimony Profile रोकें</option>
+              <option value="commsOptOut">✉️ Communications बंद करें</option>
+              <option value="privacyComplaint">⚠️ Privacy शिकायत</option>
+              <option value="grievanceEscalation">📢 Grievance Escalation</option>
+            </select>
+          </div>
+          <div class="gp-field"><label>विवरण *</label><textarea id="requestDesc" rows="4" required style="width:100%;padding:9px 12px;border:1.5px solid var(--gp-border);border-radius:8px;font-family:inherit;font-size:.87rem;box-sizing:border-box"></textarea></div>
+          <button type="submit" class="gp-btn" id="reqSubmitBtn">Request जमा करें</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="docsSection" style="display:none"><div id="docsList"></div></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let myGahoiId = null;
+
+    function fmtDate(d) {
+      if (!d) return "";
+      try { return new Date(d).toLocaleDateString("hi-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return d; }
+    }
+
+    const REQUEST_TYPE_LABELS = {
+      access: "Access", correction: "Correction", update: "Update", consentWithdrawal: "Consent Withdrawal",
+      profileRestriction: "Profile Restriction", matrimonyProfilePause: "Matrimony Profile रोकें",
+      deletion: "Deletion", commsOptOut: "Communications Opt-Out", privacyComplaint: "Privacy शिकायत",
+      grievanceEscalation: "Grievance Escalation",
+    };
+
+    async function loadRequests() {
+      const { data, error } = await gpSupabase
+        .from("data_requests")
+        .select("*")
+        .eq("user_gahoi_id", myGahoiId)
+        .order("received_at", { ascending: false });
+
+      const listEl = document.getElementById("reqList");
+      listEl.innerHTML = "";
+      if (error) { gpShowAlert("pdAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+      if (!data || data.length === 0) { listEl.innerHTML = `<div class="gp-empty">अभी कोई request नहीं डाली — "नई Request" से शुरू करें।</div>`; return; }
+
+      data.forEach((r) => {
+        const card = document.createElement("div");
+        card.className = "gp-req-card";
+        card.innerHTML = `
+          <div class="gp-req-top">
+            <span class="gp-req-id">${r.request_id}</span>
+            <span class="gp-status-badge gp-status-${r.status}">${r.status === "Open" ? "⏳ Open" : r.status === "InProgress" ? "🔄 In Progress" : "✅ Closed"}</span>
+          </div>
+          <div class="gp-req-meta">
+            <b>${REQUEST_TYPE_LABELS[r.request_type] || r.request_type}</b> · डाली गई: ${fmtDate(r.received_at)}<br>
+            ${r.request_description || ""}
+            ${r.status === "Closed" ? `<br><b>Action:</b> ${r.action_taken || "—"}` : ""}
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    async function loadDocs() {
+      const { data, error } = await gpSupabase.from("privacy_documents").select("*").order("doc_id");
+      const listEl = document.getElementById("docsList");
+      listEl.innerHTML = "";
+      if (error) { gpShowAlert("pdAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+      if (!data || data.length === 0) { listEl.innerHTML = `<div class="gp-empty">अभी कोई document uploaded नहीं है।</div>`; return; }
+
+      data.forEach((d) => {
+        const card = document.createElement("div");
+        card.className = "gp-doc-card";
+        card.innerHTML = `
+          <div class="gp-doc-title">${d.doc_id}</div>
+          <div class="gp-doc-meta">Version ${d.version} · Effective: ${fmtDate(d.effective_date)} · Last updated: ${fmtDate(d.last_updated_date)}</div>
+          <div class="gp-doc-content">${(d.content || "कोई content नहीं है।").replace(/</g, "&lt;")}</div>
+        `;
+        listEl.appendChild(card);
+      });
+    }
+
+    function switchTab(tab) {
+      ["requests", "newReq", "docs"].forEach((t) => {
+        document.getElementById(t + "Tab").classList.toggle("active", t === tab);
+        document.getElementById(t + "Section").style.display = t === tab ? "block" : "none";
+      });
+    }
+    document.getElementById("requestsTab").addEventListener("click", () => switchTab("requests"));
+    document.getElementById("newReqTab").addEventListener("click", () => switchTab("newReq"));
+    document.getElementById("docsTab").addEventListener("click", () => { switchTab("docs"); loadDocs(); });
+
+    document.getElementById("reqForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("pdAlert");
+      const btn = document.getElementById("reqSubmitBtn");
+      btn.disabled = true;
+      btn.textContent = "जमा हो रहा है...";
+
+      const { error } = await gpSupabase.from("data_requests").insert({
+        user_gahoi_id: myGahoiId,
+        request_type: document.getElementById("requestType").value,
+        request_description: document.getElementById("requestDesc").value.trim(),
+      });
+
+      btn.disabled = false;
+      btn.textContent = "Request जमा करें";
+
+      if (error) { gpShowAlert("pdAlert", "जमा नहीं हो सका: " + error.message, "error"); return; }
+      document.getElementById("reqForm").reset();
+      gpShowAlert("pdAlert", "✅ आपकी request जमा हो गई है — हमारी टीम इसे जल्द ही process करेगी।", "success");
+      switchTab("requests");
+      loadRequests();
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("privacyDashboardEnabled", "Privacy Dashboard"))) return;
+      myGahoiId = profile.gahoi_id;
+      await loadRequests();
+    })();
+  </script>
+</body>
+</html>

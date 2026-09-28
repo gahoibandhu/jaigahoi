@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matrimony Profile — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .gp-form-wrap { max-width: 560px; margin: 0 auto; padding: 20px; }
+    .gp-section { background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 20px; box-shadow: var(--gp-shadow); margin-bottom: 16px; }
+    .gp-section h3 { margin: 0 0 14px; color: var(--gp-navy); font-size: 1rem; }
+    .gp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .gp-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  </style>
+</head>
+<body>
+
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>Matrimony Profile</h1><p class="gp-header-sub">गहोई पोर्टल</p></div>
+  </div>
+
+  <div class="gp-form-wrap">
+    <p><a href="matrimony.html">← Matrimony पर वापस</a></p>
+    <div id="formAlert" class="gp-alert"></div>
+
+    <form id="matForm">
+      <div class="gp-section">
+        <h3>मूल जानकारी</h3>
+        <div class="gp-field">
+          <label>यह Profile किसके लिए है?</label>
+          <select id="profileFor"><option value="Self">स्वयं के लिए</option><option value="Son">बेटे के लिए</option><option value="Daughter">बेटी के लिए</option><option value="Relative">रिश्तेदार के लिए</option></select>
+        </div>
+        <div class="gp-row">
+          <div class="gp-field"><label>नाम *</label><input type="text" id="name" required></div>
+          <div class="gp-field">
+            <label>लिंग *</label>
+            <select id="gender" required><option value="">चुनें</option><option value="Male">वर/Male</option><option value="Female">वधू/Female</option></select>
+          </div>
+        </div>
+        <div class="gp-row">
+          <div class="gp-field"><label>Date of Birth *</label><input type="text" id="dob" placeholder="DD-MM-YYYY" required></div>
+          <div class="gp-field"><label>ऊंचाई</label><input type="text" id="height" placeholder="5'6&quot;"></div>
+        </div>
+        <div class="gp-row">
+          <div class="gp-field">
+            <label>वैवाहिक स्थिति</label>
+            <select id="marital"><option value="Unmarried">Unmarried</option><option value="Divorcee">Divorcee</option><option value="Widow">Widow/Widower</option></select>
+          </div>
+          <div class="gp-field"><label>रंग-रूप</label><input type="text" id="complexion" placeholder="Fair/Wheatish/Dark"></div>
+        </div>
+      </div>
+
+      <div class="gp-section">
+        <h3>जन्म विवरण (कुंडली मिलान के लिए)</h3>
+        <div class="gp-row">
+          <div class="gp-field"><label>जन्म समय</label><input type="text" id="birthTime" placeholder="HH:MM AM/PM"></div>
+          <div class="gp-field"><label>जन्म स्थान</label><input type="text" id="birthCity"></div>
+        </div>
+        <div class="gp-row3">
+          <div class="gp-field"><label>राशि</label><input type="text" id="rashi"></div>
+          <div class="gp-field"><label>गण</label><input type="text" id="gan"></div>
+          <div class="gp-field"><label>नक्षत्र</label><input type="text" id="nakshatra"></div>
+        </div>
+        <div class="gp-field">
+          <label>मांगलिक</label>
+          <select id="manglik"><option value="No">नहीं</option><option value="Yes">हाँ</option><option value="Anshik">आंशिक</option><option value="Unknown">पता नहीं</option></select>
+        </div>
+      </div>
+
+      <div class="gp-section">
+        <h3>शिक्षा और करियर</h3>
+        <div class="gp-field"><label>शिक्षा *</label><input type="text" id="education" required></div>
+        <div class="gp-row">
+          <div class="gp-field"><label>पेशा</label><input type="text" id="occupation"></div>
+          <div class="gp-field"><label>आय</label><input type="text" id="income"></div>
+        </div>
+        <div class="gp-row">
+          <div class="gp-field"><label>Company</label><input type="text" id="jobCompany"></div>
+          <div class="gp-field"><label>Job City</label><input type="text" id="jobCity"></div>
+        </div>
+      </div>
+
+      <div class="gp-section">
+        <h3>पारिवारिक विवरण</h3>
+        <div class="gp-row">
+          <div class="gp-field"><label>शहर *</label><input type="text" id="city" required></div>
+          <div class="gp-field"><label>मूल निवास</label><input type="text" id="native"></div>
+        </div>
+        <div class="gp-row">
+          <div class="gp-field"><label>गोत्र *</label><input type="text" id="gotra" required></div>
+          <div class="gp-field"><label>अकना *</label><input type="text" id="akna" required></div>
+        </div>
+        <div class="gp-row">
+          <div class="gp-field"><label>पिता का नाम</label><input type="text" id="father"></div>
+          <div class="gp-field"><label>पिता का पेशा</label><input type="text" id="fatherOcc"></div>
+        </div>
+        <div class="gp-field"><label>माता का नाम</label><input type="text" id="mother"></div>
+        <div class="gp-row">
+          <div class="gp-field"><label>भाई (संख्या/विवरण)</label><input type="text" id="brothers"></div>
+          <div class="gp-field"><label>बहन (संख्या/विवरण)</label><input type="text" id="sisters"></div>
+        </div>
+        <div class="gp-row">
+          <div class="gp-field"><label>मामा</label><input type="text" id="mama"></div>
+          <div class="gp-field"><label>दीदी</label><input type="text" id="didi"></div>
+        </div>
+        <div class="gp-row3">
+          <div class="gp-field"><label>दादाजी</label><input type="text" id="dadaji"></div>
+          <div class="gp-field"><label>दादीजी</label><input type="text" id="dadiji"></div>
+          <div class="gp-field"><label>ताऊ</label><input type="text" id="tau"></div>
+        </div>
+        <div class="gp-row3">
+          <div class="gp-field"><label>बुआ</label><input type="text" id="bua"></div>
+          <div class="gp-field"><label>चाचा</label><input type="text" id="chacha"></div>
+          <div class="gp-field"><label>मौसी</label><input type="text" id="mausi"></div>
+        </div>
+        <div class="gp-field"><label>नानाजी</label><input type="text" id="nanaji"></div>
+        <div class="gp-field"><label>नानीजी</label><input type="text" id="naniji"></div>
+      </div>
+
+      <div class="gp-section">
+        <h3>वर/वधू की अपेक्षाएं (Preferences)</h3>
+        <div class="gp-row">
+          <div class="gp-field"><label>शिक्षा (अपेक्षित)</label><input type="text" id="prefEdu"></div>
+          <div class="gp-field"><label>आयु (अपेक्षित)</label><input type="text" id="prefAge" placeholder="25-30"></div>
+        </div>
+        <div class="gp-field"><label>शहर (अपेक्षित)</label><input type="text" id="prefCity"></div>
+        <div class="gp-field"><label>अन्य अपेक्षाएं</label><input type="text" id="prefOther"></div>
+      </div>
+
+      <div class="gp-section">
+        <h3>Contact + Photo</h3>
+        <div class="gp-row">
+          <div class="gp-field"><label>संपर्क व्यक्ति का नाम</label><input type="text" id="contactName" placeholder="अगर Self नहीं है"></div>
+          <div class="gp-field"><label>मोबाइल *</label><input type="tel" id="mobile" pattern="[6-9][0-9]{9}" maxlength="10" required></div>
+        </div>
+        <div class="gp-field"><label>पता</label><input type="text" id="address"></div>
+        <div class="gp-field"><label>Photo URL</label><input type="text" id="photo" placeholder="अभी सीधे URL — upload feature बाद में"></div>
+        <div class="gp-field"><label>अपने बारे में</label><input type="text" id="about"></div>
+      </div>
+
+      <button type="submit" class="gp-btn" id="saveBtn">Profile Save करें</button>
+    </form>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let existingProfile = null;
+    let profileGahoiId = null;
+
+    const ALL_FIELDS = [
+      "profileFor","name","gender","dob","height","marital","complexion",
+      "birthTime","birthCity","rashi","gan","nakshatra","manglik",
+      "education","occupation","income","jobCompany","jobCity",
+      "city","native","gotra","akna","father","fatherOcc","mother","brothers","sisters",
+      "mama","didi","dadaji","dadiji","tau","bua","chacha","mausi","nanaji","naniji",
+      "prefEdu","prefAge","prefCity","prefOther",
+      "contactName","mobile","address","photo","about",
+    ];
+
+    // camelCase (form field ids) ↔ snake_case (DB columns) mapping
+    const FIELD_TO_COLUMN = {
+      profileFor: "profile_for", fatherOcc: "father_occ", contactName: "contact_name",
+      prefEdu: "pref_edu", prefAge: "pref_age", prefCity: "pref_city", prefOther: "pref_other",
+      birthTime: "birth_time", birthCity: "birth_city", jobCompany: "job_company", jobCity: "job_city",
+    };
+    function toColumn(field) { return FIELD_TO_COLUMN[field] || field; }
+
+    function fillForm(p) {
+      ALL_FIELDS.forEach((f) => {
+        const el = document.getElementById(f);
+        const val = p[toColumn(f)];
+        if (el && val !== undefined && val !== null) el.value = val;
+      });
+    }
+
+    function buildPayload() {
+      const payload = {};
+      ALL_FIELDS.forEach((f) => {
+        const el = document.getElementById(f);
+        payload[toColumn(f)] = el.value.trim();
+      });
+      return payload;
+    }
+
+    document.getElementById("matForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      gpHideAlert("formAlert");
+      const btn = document.getElementById("saveBtn");
+      btn.disabled = true;
+      btn.textContent = "Save हो रहा है...";
+
+      const payload = buildPayload();
+      let result;
+      if (existingProfile) {
+        result = await gpSupabase.from("matrimony_profiles").update(payload).eq("id", existingProfile.id).select().single();
+      } else {
+        result = await gpSupabase.from("matrimony_profiles").insert({ ...payload, created_by: profileGahoiId }).select().single();
+      }
+
+      btn.disabled = false;
+      btn.textContent = "Profile Save करें";
+
+      if (result.error) {
+        gpShowAlert("formAlert", "Save नहीं हो सका: " + result.error.message, "error");
+        return;
+      }
+      gpShowAlert("formAlert", "✅ Profile save हो गई!", "success");
+      existingProfile = result.data;
+      setTimeout(() => { window.location.href = "matrimony.html"; }, 1200);
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const profile = await gpGetMyProfile();
+      if (!profile) { window.location.href = "complete-profile.html"; return; }
+      if (profile.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      if (!(await gpGuardFeature("matrimonyEnabled", "Matrimony"))) return;
+      profileGahoiId = profile.gahoi_id;
+
+      const { data } = await gpSupabase.from("matrimony_profiles").select("*").eq("created_by", profile.gahoi_id).is("deleted_at", null).maybeSingle();
+      if (data) {
+        existingProfile = data;
+        fillForm(data);
+        document.getElementById("saveBtn").textContent = "Profile Update करें";
+      }
+    })();
+  </script>
+</body>
+</html>
