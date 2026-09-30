@@ -13,8 +13,10 @@
 -- को भी select+update करने दे। किसी और table पर कोई असर नहीं।
 -- ============================================================================
 
+drop policy if exists pm_select_mahasabha_print on panchayat_memberships;
 create policy pm_select_mahasabha_print on panchayat_memberships
   for select using (coalesce(current_person_role() = 'mahasabhaPrint', false));
 
+drop policy if exists pm_update_mahasabha_print on panchayat_memberships;
 create policy pm_update_mahasabha_print on panchayat_memberships
   for update using (coalesce(current_person_role() = 'mahasabhaPrint', false));

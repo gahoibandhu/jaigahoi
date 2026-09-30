@@ -131,6 +131,6 @@ create table if not exists settings (
   updated_at timestamptz not null default now()
 );
 
-create trigger trg_settings_updated_at
+create or replace trigger trg_settings_updated_at
   before update on settings
   for each row execute function touch_updated_at();

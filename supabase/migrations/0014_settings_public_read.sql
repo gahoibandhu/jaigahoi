@@ -20,6 +20,7 @@ drop policy if exists settings_read_admin on settings;
 
 -- 'secrets' doc हमेशा service_role-only रहेगा (कोई client policy नहीं इसे कवर
 -- करेगी — ना यह, ना कोई और) — बाक़ी हर doc अब सबको पढ़ने देते हैं।
+drop policy if exists settings_read_public on settings;
 create policy settings_read_public on settings
   for select using (doc_id <> 'secrets');
 

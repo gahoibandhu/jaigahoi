@@ -34,7 +34,7 @@ begin
 end;
 $$;
 
-create trigger trg_protect_privileged_fields
+create or replace trigger trg_protect_privileged_fields
   before update on persons
   for each row execute function protect_privileged_person_fields();
 
@@ -102,10 +102,10 @@ $$;
 -- ज़रूरी: पहले privileged-fields-protect चले, फिर tier-calculate (alphabetical trigger-order से
 -- naming prefix "a_"/"b_" से control करना ज़्यादा भरोसेमंद है Postgres में)
 drop trigger if exists trg_protect_privileged_fields on persons;
-create trigger a_protect_privileged_fields
+create or replace trigger a_protect_privileged_fields
   before update on persons
   for each row execute function protect_privileged_person_fields();
 
-create trigger b_calculate_profile_tier
+create or replace trigger b_calculate_profile_tier
   before insert or update on persons
   for each row execute function calculate_profile_tier();

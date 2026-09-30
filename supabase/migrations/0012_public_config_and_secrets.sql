@@ -32,10 +32,12 @@ drop policy if exists settings_read_admin on settings;
 drop policy if exists settings_write_admin on settings;
 
 -- publicConfig doc — कोई भी (anon समेत) पढ़ सकता है
+drop policy if exists settings_read_public on settings;
 create policy settings_read_public on settings
   for select using (doc_id = 'publicConfig');
 
 -- बाक़ी सब doc — सिर्फ़ Admin/Approver, पर 'secrets' doc कभी नहीं (चाहे Admin ही क्यों ना हो)
+drop policy if exists settings_read_admin on settings;
 create policy settings_read_admin on settings
   for select using (doc_id <> 'secrets' and is_approver_or_admin());
 

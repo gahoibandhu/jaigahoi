@@ -35,9 +35,11 @@ alter table offers enable row level security;
 -- legacy doGetOffers() ValidTill बीत जाने पर auto soft-delete करता था — यहाँ
 -- read-time पर ही expiry भी check कर लेते हैं ताकि किसी अलग cron/trigger की
 -- ज़रूरत ना पड़े (deleted_at अलग से भी set किया जा सकता है, दोनों शर्तें OR हैं)
+drop policy if exists offers_read_all on offers;
 create policy offers_read_all on offers for select
   using (deleted_at is null and (valid_till is null or valid_till >= current_date));
 
+drop policy if exists offers_write_own_or_admin on offers;
 create policy offers_write_own_or_admin on offers for all
   using (posted_by = current_gahoi_id() or is_approver_or_admin())
   with check (posted_by = current_gahoi_id() or is_approver_or_admin());

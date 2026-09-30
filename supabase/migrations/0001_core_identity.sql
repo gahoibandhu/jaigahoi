@@ -112,11 +112,22 @@ create table if not exists persons (
 );
 
 -- families.head_gahoi_id की FK अब जोड़ते हैं (persons बनने के बाद)
-alter table families
-  add constraint fk_families_head_gahoi_id
-  foreign key (head_gahoi_id) references persons(gahoi_id) on delete set null;
+-- Postgres में ADD CONSTRAINT IF NOT EXISTS नहीं होता (CREATE TABLE IF NOT EXISTS
+-- जैसा) — इसलिए DO block से खुद check करके guard किया, ताकि यह migration किसी
+-- ऐसे DB पर दोबारा चले (जहाँ tables पहले से manually/किसी और तरीक़े से बन चुके थे)
+-- तो यह statement fail ना हो और पूरा deploy pipeline (migrations + functions) आगे बढ़ सके।
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'fk_families_head_gahoi_id'
+  ) then
+    alter table families
+      add constraint fk_families_head_gahoi_id
+      foreign key (head_gahoi_id) references persons(gahoi_id) on delete set null;
+  end if;
+end $$;
 
-create trigger trg_persons_updated_at
+create or replace trigger trg_persons_updated_at
   before update on persons
   for each row execute function touch_updated_at();
 

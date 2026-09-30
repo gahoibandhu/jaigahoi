@@ -117,6 +117,6 @@ end;
 $$;
 
 drop trigger if exists trg_sync_space_comment_count on space_comments;
-create trigger trg_sync_space_comment_count
+create or replace trigger trg_sync_space_comment_count
   after insert or update on space_comments
   for each row execute function sync_space_comment_count();

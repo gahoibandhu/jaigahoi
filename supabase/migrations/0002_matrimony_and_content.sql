@@ -49,7 +49,7 @@ begin
 end;
 $$;
 
-create trigger trg_matrimony_edited_at
+create or replace trigger trg_matrimony_edited_at
   before update on matrimony_profiles
   for each row execute function touch_updated_at_edited();
 

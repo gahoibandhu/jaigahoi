@@ -19,7 +19,9 @@ create index if not exists idx_akna_list_english_lower on akna_list(lower(englis
 
 alter table akna_list enable row level security;
 
+drop policy if exists akna_list_read_all on akna_list;
 create policy akna_list_read_all on akna_list for select using (true);
+drop policy if exists akna_list_write_admin on akna_list;
 create policy akna_list_write_admin on akna_list for all
   using (is_approver_or_admin()) with check (is_approver_or_admin());
 
