@@ -23,6 +23,6 @@
 // ============================================================================
 
 window.GP_CONFIG = {
-  SUPABASE_URL: "https://YOUR-PROJECT.supabase.co",
-  SUPABASE_ANON_KEY: "YOUR-ANON-KEY",
+  SUPABASE_URL: "https://uytcfbwmlkclhefyqowo.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5dGNmYndtbGtjbGhlZnlxb3dvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NTYxMTMsImV4cCI6MjEwNTEzMjExM30.Z9DjAmt6ls5vbHzTe0t0xHr3A9vFfe5j9oSQZVUZjeU",
 };
