@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7a1f3d">
+  <title>Display Settings — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .ds-wrap { max-width: 760px; margin: 24px auto; padding: 0 16px 40px; }
+    .ds-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .ds-top a { color: var(--primary); font-weight: 600; text-decoration: none; font-size: .9rem; }
+    .ds-section { background: var(--gp-card); border: 1px solid var(--border-soft); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); padding: 20px 22px; margin-bottom: 16px; }
+    .ds-section h3 { margin: 0 0 4px; color: var(--primary); font-size: 1.35rem; }
+    .ds-section p { margin: 0 0 14px; color: var(--gp-text-muted); font-size: .88rem; }
+    .ds-themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+    .ds-theme { position: relative; background: var(--paper); border: 3px solid var(--border); border-radius: 14px; padding: 14px; cursor: pointer; transition: var(--transition); text-align: left; font-family: inherit; }
+    .ds-theme:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+    .ds-theme.active { border-color: var(--primary); }
+    .ds-swatch { display: flex; gap: 6px; height: 30px; border-radius: 6px; overflow: hidden; margin-bottom: 10px; }
+    .ds-swatch .a { flex: 1; }
+    .ds-swatch .b { width: 30px; }
+    .ds-theme .n { font-weight: 700; color: var(--text); font-size: .95rem; }
+    .ds-theme .d { font-size: .75rem; color: var(--gp-text-muted); }
+    .ds-check { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: #fff; display: none; align-items: center; justify-content: center; font-size: .8rem; }
+    .ds-theme.active .ds-check { display: flex; }
+    .ds-modes { display: flex; gap: 10px; flex-wrap: wrap; }
+    .ds-mode { flex: 1; min-width: 200px; background: var(--paper); border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px; cursor: pointer; text-align: left; font-family: inherit; transition: var(--transition); }
+    .ds-mode.active { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+    .ds-mode .n { font-weight: 700; color: var(--primary); }
+    .ds-mode .d { font-size: .78rem; color: var(--gp-text-muted); }
+    .ds-preview { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .ds-note { font-size: .78rem; color: var(--gp-text-muted); text-align: center; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🎨 Display Settings</h1><div class="gp-header-sub">अपना theme और look चुनें</div></div>
+  </div>
+
+  <div class="ds-wrap">
+    <div class="ds-top"><a href="home.html">← Home</a><button class="gp-btn gp-btn-secondary gp-btn-sm" id="resetBtn">↺ Default पर लौटें</button></div>
+
+    <div class="ds-section">
+      <h3>Look — Royal या Classic</h3>
+      <p>Royal: cream-gold नया रूप · Classic: पुराना सुनहरा header वाला रूप।</p>
+      <div class="ds-modes">
+        <button class="ds-mode" data-mode="royal"><div class="n">🏛 Royal</div><div class="d">नया look (default)</div></button>
+        <button class="ds-mode" data-mode="classic"><div class="n">✨ Classic</div><div class="d">original look</div></button>
+      </div>
+    </div>
+
+    <div class="ds-section">
+      <h3>रंग-थीम</h3>
+      <p>अपनी पसंद का रंग चुनें — पूरे portal पर लागू होगा।</p>
+      <div class="ds-themes" id="themeGrid"></div>
+    </div>
+
+    <div class="ds-section">
+      <h3>Preview</h3>
+      <div class="ds-preview">
+        <button class="gp-btn gp-btn-sm">Primary बटन</button>
+        <button class="gp-btn gp-btn-secondary gp-btn-sm">Secondary</button>
+        <span style="color:var(--primary);font-family:var(--font-display);font-size:1.4rem;font-weight:700">गहोई पोर्टल</span>
+      </div>
+    </div>
+    <div class="ds-note">💡 आपकी पसंद इसी device/browser में save रहती है।</div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+    function currentThemeKey() { return gpGetSavedTheme() || "maroon"; }
+
+    function renderThemes() {
+      const cur = currentThemeKey();
+      document.getElementById("themeGrid").innerHTML = Object.keys(GP_THEMES).map((key) => {
+        const t = GP_THEMES[key];
+        return `<button class="ds-theme ${key === cur ? "active" : ""}" data-theme="${esc(key)}">
+          <div class="ds-swatch"><div class="a" style="background:linear-gradient(135deg,${t.vars["--primary"]},${t.vars["--primary2"]})"></div><div class="b" style="background:${t.vars["--accent"]}"></div></div>
+          <div class="n">${esc(t.name)}</div><div class="d">${esc(t.desc)}</div>
+          <span class="ds-check">✓</span></button>`;
+      }).join("");
+    }
+
+    function renderModes() {
+      const cur = gpGetSavedMode();
+      document.querySelectorAll(".ds-mode").forEach((b) => b.classList.toggle("active", b.dataset.mode === cur));
+    }
+
+    document.getElementById("themeGrid").addEventListener("click", (e) => {
+      const btn = e.target.closest(".ds-theme");
+      if (!btn) return;
+      gpApplyTheme(btn.dataset.theme);
+      renderThemes();
+    });
+    document.querySelectorAll(".ds-mode").forEach((b) => b.addEventListener("click", () => { gpApplyMode(b.dataset.mode); renderModes(); }));
+    document.getElementById("resetBtn").addEventListener("click", () => { gpResetDisplay(); renderThemes(); renderModes(); });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      renderThemes();
+      renderModes();
+    })();
+  </script>
+</body>
+</html>

@@ -203,3 +203,58 @@ async function gpGuardFeature(flagKey, featureLabelHindi) {
   window.location.href = "home.html";
   return false;
 }
+
+
+// ============================================================================
+// Display settings — Theme रंग (6) + Classic ⇄ Royal mode
+// पुराने index.html के THEMES / applyTheme / initTheme और royal-toggle.js से ported।
+// Preference इस device के localStorage में रहती है (पुराने portal जैसा):
+//   gp_theme_v1   = maroon | saffron | emerald | charcoal | rose | navy
+//   gp-theme-mode = royal | classic
+// सिर्फ़ CSS variables बदलते हैं, इसलिए हर page पर अपने-आप लागू होता है।
+// ============================================================================
+const GP_THEMES = {
+  maroon:   { name: "🏛 Royal Maroon",   desc: "Traditional Indian wedding",       vars: { "--primary": "#7a1f3d", "--primary2": "#a01840", "--primary-dark": "#5a0e26", "--accent": "#d4af37", "--accent2": "#f0b429" } },
+  saffron:  { name: "🌼 Saffron Indigo", desc: "Indian flag inspired (trending)",  vars: { "--primary": "#3730a3", "--primary2": "#4f46e5", "--primary-dark": "#1e1b4b", "--accent": "#f57c00", "--accent2": "#fb923c" } },
+  emerald:  { name: "💎 Emerald Gold",   desc: "Luxury wedding aesthetic",         vars: { "--primary": "#064e3b", "--primary2": "#047857", "--primary-dark": "#022c22", "--accent": "#d4af37", "--accent2": "#f0b429" } },
+  charcoal: { name: "⚫ Charcoal Gold",  desc: "Modern professional",              vars: { "--primary": "#111827", "--primary2": "#1f2937", "--primary-dark": "#030712", "--accent": "#fbbf24", "--accent2": "#f59e0b" } },
+  rose:     { name: "🌹 Rose Gold",      desc: "Elegant modern",                   vars: { "--primary": "#9f1239", "--primary2": "#be185d", "--primary-dark": "#6b0826", "--accent": "#f59e0b", "--accent2": "#fbbf24" } },
+  navy:     { name: "🔵 Navy Classic",   desc: "Original blue (safe)",             vars: { "--primary": "#1a3a5c", "--primary2": "#264f82", "--primary-dark": "#0d2038", "--accent": "#e8a020", "--accent2": "#f0b429" } }
+};
+const GP_THEME_KEY = "gp_theme_v1";
+const GP_MODE_KEY = "gp-theme-mode";
+
+function gpGetSavedTheme() { try { return localStorage.getItem(GP_THEME_KEY) || ""; } catch (e) { return ""; } }
+function gpGetSavedMode() { try { return localStorage.getItem(GP_MODE_KEY) || "royal"; } catch (e) { return "royal"; } }
+
+function gpApplyTheme(key, persist) {
+  const theme = GP_THEMES[key];
+  if (!theme) return false;
+  const root = document.documentElement;
+  Object.keys(theme.vars).forEach((v) => root.style.setProperty(v, theme.vars[v]));
+  if (persist !== false) { try { localStorage.setItem(GP_THEME_KEY, key); } catch (e) {} }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", theme.vars["--primary"]);
+  return true;
+}
+
+function gpApplyMode(mode, persist) {
+  const m = mode === "classic" ? "classic" : "royal";
+  document.documentElement.setAttribute("data-theme-mode", m);
+  if (persist !== false) { try { localStorage.setItem(GP_MODE_KEY, m); } catch (e) {} }
+  return m;
+}
+
+function gpResetDisplay() {
+  try { localStorage.removeItem(GP_THEME_KEY); localStorage.removeItem(GP_MODE_KEY); } catch (e) {}
+  const root = document.documentElement;
+  Object.keys(GP_THEMES.maroon.vars).forEach((v) => root.style.removeProperty(v));
+  root.setAttribute("data-theme-mode", "royal");
+}
+
+// हर page load पर saved पसंद लागू करो
+(function gpInitDisplay() {
+  gpApplyMode(gpGetSavedMode(), false);
+  const saved = gpGetSavedTheme();
+  if (saved) gpApplyTheme(saved, false);
+})();

@@ -36,6 +36,18 @@
       border: 1px solid var(--gp-warning-border); border-radius: var(--gp-radius); display: none;
     }
     .gp-admin-banner a { color: var(--gp-gold-dark); font-weight: 700; }
+
+    .gp-widgets { max-width: 900px; margin: 18px auto 0; padding: 0 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+    .gp-widget { background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 18px; box-shadow: var(--gp-shadow); }
+    .gp-widget h3 { margin: 0 0 10px; font-size: 1rem; color: var(--gp-navy); }
+    .gp-panchang-main { font-size: 1.05rem; font-weight: 700; color: var(--gp-gold-dark); }
+    .gp-panchang-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: .86rem; margin-top: 8px; }
+    .gp-panchang-grid dt { color: var(--gp-text-muted); }
+    .gp-panchang-grid dd { margin: 0; font-weight: 600; }
+    .gp-fest-row { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--gp-border); font-size: .9rem; }
+    .gp-fest-row:last-child { border-bottom: none; }
+    .gp-fest-date { min-width: 64px; font-weight: 700; color: var(--gp-navy); font-size: .82rem; }
+    .gp-widget-empty { color: var(--gp-text-muted); font-size: .86rem; }
   </style>
 </head>
 <body>
@@ -61,6 +73,11 @@
     ⚙️ आप Admin/Approver हैं — <a href="admin-pending.html">Pending Approvals</a> &nbsp;|&nbsp; <a href="admin-members.html">All Members</a> &nbsp;|&nbsp; <a href="admin-mahasabha.html">Mahasabha Applications</a> &nbsp;|&nbsp; <a href="admin-privacy.html">Privacy & Compliance</a> &nbsp;|&nbsp; <a href="admin-ledger.html">Ledger</a> &nbsp;|&nbsp; <a href="admin-audit-log.html">Audit Log</a> &nbsp;|&nbsp; <a href="admin-broadcast.html">Broadcast Email</a> &nbsp;|&nbsp; <a href="admin-features.html">Feature Flags</a> &nbsp;|&nbsp; <a href="admin-settings.html">Settings</a>
   </div>
 
+  <div class="gp-widgets">
+    <div class="gp-widget" id="panchangWidget"><h3>🕉 आज का पंचांग</h3><div class="gp-widget-empty">लोड हो रहा है...</div></div>
+    <div class="gp-widget" id="festivalWidget"><h3>🎉 आने वाले त्योहार</h3><div class="gp-widget-empty">लोड हो रहा है...</div></div>
+  </div>
+
   <div class="gp-tiles">
     <a href="directory.html" class="gp-tile"><span class="gp-tile-icon">👥</span>Member Directory</a>
     <a href="matrimony.html" class="gp-tile"><span class="gp-tile-icon">💑</span>Matrimony</a>
@@ -79,6 +96,7 @@
     <a href="dharmshala.html" class="gp-tile"><span class="gp-tile-icon">🛕</span>Dharmshala</a>
     <a href="daan-seva.html" class="gp-tile"><span class="gp-tile-icon">🙏</span>Daan Seva</a>
     <a href="profile.html" class="gp-tile"><span class="gp-tile-icon">👤</span>मेरी Profile</a>
+    <a href="display-settings.html" class="gp-tile"><span class="gp-tile-icon">🎨</span>Display Settings</a>
     <a href="privacy-dashboard.html" class="gp-tile"><span class="gp-tile-icon">🔐</span>Privacy Dashboard</a>
   </div>
 
@@ -106,7 +124,44 @@
       if (profile.role === "Admin" || profile.role === "Approver" || profile.role === "mahasabhaPrint") {
         document.getElementById("adminBanner").style.display = "block";
       }
+
+      loadPanchang();
+      loadFestivals();
     })();
+
+    // ── Panchang + Festivals widgets (table: panchang_daily, festivals — migration 0017) ──
+    function gpEsc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    function gpIstDate(offsetDays) {
+      const d = new Date(Date.now() + offsetDays * 86400000);
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d); // yyyy-mm-dd
+    }
+    async function loadPanchang() {
+      const el = document.getElementById("panchangWidget");
+      const { data, error } = await gpSupabase.from("panchang_daily").select("*").eq("date", gpIstDate(0)).maybeSingle();
+      if (error) { el.innerHTML = `<h3>🕉 आज का पंचांग</h3><div class="gp-widget-empty">लोड नहीं हो सका: ${gpEsc(error.message)}</div>`; return; }
+      if (!data) { el.innerHTML = `<h3>🕉 आज का पंचांग</h3><div class="gp-widget-empty">आज का पंचांग अभी उपलब्ध नहीं है।</div>`; return; }
+      const row = (k, v) => v ? `<dt>${k}</dt><dd>${gpEsc(v)}</dd>` : "";
+      el.innerHTML = `<h3>🕉 आज का पंचांग</h3>
+        <div class="gp-panchang-main">${gpEsc(data.tithi)}${data.paksha ? " · " + gpEsc(data.paksha) : ""}</div>
+        <dl class="gp-panchang-grid">
+          ${row("नक्षत्र", data.nakshatra)}${row("योग", data.yoga)}${row("करण", data.karana)}
+          ${row("मास", data.amanta ? data.amanta + (data.purnimanta && data.purnimanta !== data.amanta ? " / " + data.purnimanta : "") : "")}
+          ${row("संवत्", data.samvat)}${row("सूर्योदय", data.sunrise)}${row("सूर्यास्त", data.sunset)}
+        </dl>`;
+    }
+    async function loadFestivals() {
+      const el = document.getElementById("festivalWidget");
+      const { data, error } = await gpSupabase.from("festivals").select("date,name,hindi,emoji")
+        .gte("date", gpIstDate(0)).lte("date", gpIstDate(60)).order("date", { ascending: true }).limit(6);
+      if (error) { el.innerHTML = `<h3>🎉 आने वाले त्योहार</h3><div class="gp-widget-empty">लोड नहीं हो सका: ${gpEsc(error.message)}</div>`; return; }
+      if (!data || !data.length) { el.innerHTML = `<h3>🎉 आने वाले त्योहार</h3><div class="gp-widget-empty">अगले 60 दिनों में कोई त्योहार दर्ज नहीं है।</div>`; return; }
+      const today = gpIstDate(0);
+      el.innerHTML = `<h3>🎉 आने वाले त्योहार</h3>` + data.map((f) => {
+        const dt = new Date(f.date + "T00:00:00");
+        const label = f.date === today ? "आज" : dt.toLocaleDateString("hi-IN", { day: "numeric", month: "short" });
+        return `<div class="gp-fest-row"><span>${gpEsc(f.emoji || "🎉")}</span><span class="gp-fest-date">${gpEsc(label)}</span><span>${gpEsc(f.hindi || f.name)}</span></div>`;
+      }).join("");
+    }
 
     document.getElementById("logoutBtn").addEventListener("click", async () => {
       await gpSupabase.auth.signOut();
