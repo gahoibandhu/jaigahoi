@@ -52,8 +52,8 @@
         <form id="magForm">
           <div class="gp-field"><label>शीर्षक *</label><input type="text" id="title" required></div>
           <div class="gp-field"><label>विवरण</label><input type="text" id="description"></div>
-          <div class="gp-field"><label>Cover Image URL</label><input type="text" id="coverImage"></div>
-          <div class="gp-field"><label>PDF/File URL *</label><input type="text" id="fileUrl" required></div>
+          <div class="gp-field"><label>Cover Image</label><input type="file" id="coverFile" accept="image/*"><img id="coverPrev" alt="" style="display:none;max-width:160px;max-height:120px;margin-top:8px;border-radius:8px;border:1px solid var(--gp-border)"><div class="gp-hint" id="coverStatus">फोटो चुनें — अपने-आप upload होगी। (या नीचे सीधा URL डालें)</div><input type="text" id="coverImage" placeholder="या फोटो का URL" style="margin-top:6px"></div>
+          <div class="gp-field"><label>PDF *</label><input type="file" id="pdfFile" accept="application/pdf,image/*"><div class="gp-hint" id="pdfStatus">PDF चुनें (15MB तक) — अपने-आप upload होगी। (या नीचे सीधा URL डालें)</div><input type="text" id="fileUrl" required placeholder="या PDF/File का URL" style="margin-top:6px"></div>
           <div class="gp-field"><label>महीना</label><input type="text" id="month" placeholder="जैसे: जनवरी"></div>
           <div class="gp-field"><label>वर्ष</label><input type="text" id="year" placeholder="2026"></div>
           <button type="submit" class="gp-btn" id="magSubmitBtn">Upload करें</button>
@@ -64,6 +64,8 @@
 
   <script src="config.js"></script>
   <script src="common.js"></script>
+  <script>gpWireUpload({ file: "coverFile", url: "coverImage", status: "coverStatus", preview: "coverPrev", folder: "gahoi-portal/magazines" });
+  gpWireUpload({ file: "pdfFile", url: "fileUrl", status: "pdfStatus", folder: "gahoi-portal/magazines", pdf: true });</script>
   <script>
     let myRole = null;
     let myGahoiId = null;

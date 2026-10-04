@@ -47,7 +47,7 @@
     <div id="postSection" style="display:none">
       <div class="gp-section" style="background:var(--gp-card); border-radius:var(--gp-radius-lg); padding:20px; box-shadow:var(--gp-shadow); max-width:440px">
         <form id="galForm">
-          <div class="gp-field"><label>Photo URL *</label><input type="text" id="url" required></div>
+          <div class="gp-field"><label>फोटो * (एक या कई एक साथ)</label><input type="file" id="galFiles" accept="image/*" multiple><div class="gp-hint" id="galFileStatus">एक साथ कई फोटो चुन सकते हैं — सबको यही Caption/Album मिलेगा।</div><input type="text" id="url" placeholder="या सिर्फ़ एक फोटो का URL" style="margin-top:6px"></div>
           <div class="gp-field"><label>Caption</label><input type="text" id="caption"></div>
           <div class="gp-field"><label>Album</label><input type="text" id="album" placeholder="General"></div>
           <button type="submit" class="gp-btn" id="galSubmitBtn">Upload करें</button>
@@ -58,6 +58,7 @@
 
   <script src="config.js"></script>
   <script src="common.js"></script>
+  <script>gpWireUpload({ file: "galFiles", url: "url", status: "galFileStatus", folder: "gahoi-portal/gallery" });</script>
   <script>
     let myRole = null;
 
@@ -121,11 +122,27 @@
       btn.disabled = true;
       btn.textContent = "Upload हो रहा है...";
 
-      const { error } = await gpSupabase.from("gallery").insert({
-        url: document.getElementById("url").value.trim(),
-        caption: document.getElementById("caption").value.trim(),
-        album: document.getElementById("album").value.trim() || "General",
-      });
+      const files = [...(document.getElementById("galFiles").files || [])];
+      const caption = document.getElementById("caption").value.trim();
+      const album = document.getElementById("album").value.trim() || "General";
+      let rows = [];
+      if (files.length > 1) {
+        // Bulk: हर फोटो अलग upload, फिर एक बार में सारे rows insert
+        const st = document.getElementById("galFileStatus");
+        const failed = [];
+        for (let i = 0; i < files.length; i++) {
+          st.textContent = `⏳ ${i + 1}/${files.length} upload हो रही है...`;
+          const r = await gpUploadToCloudinary(files[i], "gahoi-portal/gallery");
+          if (r.success) rows.push({ url: r.url, caption, album }); else failed.push(files[i].name + " (" + r.message + ")");
+        }
+        if (failed.length) gpShowAlert("galAlert", "कुछ फोटो upload नहीं हुईं: " + failed.join("; "), "error");
+        if (!rows.length) { btn.disabled = false; btn.textContent = "Upload करें"; return; }
+      } else {
+        const u = document.getElementById("url").value.trim();
+        if (!u) { btn.disabled = false; btn.textContent = "Upload करें"; gpShowAlert("galAlert", "कोई फोटो चुनें या URL डालें।", "error"); return; }
+        rows = [{ url: u, caption, album }];
+      }
+      const { error } = await gpSupabase.from("gallery").insert(rows);
 
       btn.disabled = false;
       btn.textContent = "Upload करें";

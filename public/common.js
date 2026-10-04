@@ -122,8 +122,12 @@ async function gpUploadToCloudinary(file, folder = "gahoi-portal") {
   if (!file || !file.type || !file.type.startsWith("image/")) {
     return { success: false, message: "कृपया एक image file चुनें।" };
   }
+  if (file.size > 15 * 1024 * 1024) {
+    return { success: false, message: "Image 15MB से बड़ी नहीं होनी चाहिए।" };
+  }
+  file = await gpCompressImage(file); // मोबाइल की बड़ी फोटो छोटी करके upload (legacy compress जैसा)
   if (file.size > 5 * 1024 * 1024) {
-    return { success: false, message: "Image 5MB से बड़ी नहीं होनी चाहिए।" };
+    return { success: false, message: "Image compress के बाद भी 5MB से बड़ी है — कोई छोटी फोटो चुनें।" };
   }
 
   const formData = new FormData();
@@ -258,3 +262,71 @@ function gpResetDisplay() {
   const saved = gpGetSavedTheme();
   if (saved) gpApplyTheme(saved, false);
 })();
+
+
+// ============================================================================
+// Upload helpers — सब modules (business/offers/events/gallery/magazine/space/matrimony) के लिए
+// ============================================================================
+async function gpCompressImage(file, maxDim = 1600, quality = 0.82) {
+  try {
+    if (!file || !file.type || !file.type.startsWith("image/") || /gif|svg/.test(file.type)) return file;
+    if (file.size < 350 * 1024) return file; // पहले से छोटी फोटो जस की तस
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
+    const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(bmp, 0, 0, w, h);
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", quality));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], (file.name || "photo").replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch (e) { return file; }
+}
+
+// Image या PDF — Cloudinary "auto" endpoint (Magazine PDF के लिए)
+async function gpUploadFileToCloudinary(file, folder = "gahoi-portal", opts = {}) {
+  const isPdf = file && file.type === "application/pdf";
+  if (!isPdf) return gpUploadToCloudinary(file, folder);
+  if (!opts.allowPdf) return { success: false, message: "यहाँ सिर्फ़ image चुनें।" };
+  const cloudName = await gpGetSetting("publicConfig", "cloudinaryCloudName", "");
+  const uploadPreset = await gpGetSetting("publicConfig", "cloudinaryUploadPreset", "");
+  if (!cloudName || !uploadPreset) return { success: false, message: "Cloudinary अभी configure नहीं है — Admin को Settings में Cloud Name/Upload Preset भरने दें।" };
+  if (file.size > 15 * 1024 * 1024) return { success: false, message: "PDF 15MB से बड़ी नहीं होनी चाहिए।" };
+  const fd = new FormData();
+  fd.append("file", file); fd.append("upload_preset", uploadPreset); fd.append("folder", folder);
+  try {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok || !data.secure_url) return { success: false, message: (data.error && data.error.message) || "Upload असफल रहा।" };
+    return { success: true, url: data.secure_url };
+  } catch (e) { return { success: false, message: "Upload नहीं हो सका: " + e.message }; }
+}
+
+// file input -> upload -> URL input भर दे। opts: { file, url, status, preview, folder, pdf }
+function gpWireUpload(opts) {
+  const fileEl = document.getElementById(opts.file), urlEl = document.getElementById(opts.url);
+  const stEl = opts.status ? document.getElementById(opts.status) : null;
+  const pvEl = opts.preview ? document.getElementById(opts.preview) : null;
+  if (!fileEl || !urlEl) return;
+  const show = (u) => { if (pvEl) { if (u) { pvEl.src = u; pvEl.style.display = "block"; } else pvEl.style.display = "none"; } };
+  fileEl.addEventListener("change", async () => {
+    const f = fileEl.files[0]; if (!f) return;
+    if (stEl) stEl.textContent = "⏳ Upload हो रहा है...";
+    const r = await gpUploadFileToCloudinary(f, opts.folder || "gahoi-portal", { allowPdf: !!opts.pdf });
+    if (!r.success) { if (stEl) stEl.textContent = "❌ " + r.message; return; }
+    urlEl.value = r.url; show(r.url);
+    if (stEl) stEl.textContent = "✅ Upload हो गया।";
+  });
+  urlEl.addEventListener("input", () => show(urlEl.value.trim()));
+}
+
+// CSV line parser (quotes समेत) — legacy parseCSVLine जैसा
+function gpParseCsvLine(line) {
+  const out = []; let cur = "", q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; }
+    else if (c === '"') q = true; else if (c === ",") { out.push(cur); cur = ""; } else cur += c;
+  }
+  out.push(cur); return out;
+}

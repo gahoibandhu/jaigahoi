@@ -59,11 +59,60 @@
           <button type="submit" class="gp-btn" id="dhSubmitBtn">जोड़ें</button>
         </form>
       </div>
+      <div class="gp-section" style="background:var(--gp-card); border-radius:var(--gp-radius-lg); padding:20px; box-shadow:var(--gp-shadow); margin-top:16px">
+        <h3 style="margin:0 0 6px;color:var(--primary)">📥 CSV से कई एक साथ जोड़ें</h3>
+        <div class="gp-hint">Columns (header पहली row में): <b>Sl, State, City, Name, Address, Person, Contact, Maps</b> — Sl न हो तो 7 columns भी चलेंगे।
+          <a href="#" id="dhCsvTemplate">नमूना CSV डाउनलोड करें</a></div>
+        <input type="file" id="dhCsvFile" accept=".csv,text/csv" style="margin:10px 0">
+        <div id="dhCsvPreview" class="gp-hint"></div>
+        <button type="button" class="gp-btn" id="dhCsvImport" style="display:none">⬆ सब जोड़ें</button>
+      </div>
     </div>
   </div>
 
   <script src="config.js"></script>
   <script src="common.js"></script>
+  <script>
+    // legacy parseDharmshalaCSV का port (Sl वैकल्पिक, quotes समर्थित)
+    let dhCsvRows = [];
+    function parseDharmCsv(text) {
+      const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim());
+      if (lines.length < 2) return [];
+      const cols = (l) => gpParseCsvLine(l).map((x) => x.trim());
+      const header = cols(lines[0]).map((h) => h.toLowerCase());
+      const hasSl = header[0] === "sl" || header[0] === "s.no" || header[0] === "#";
+      const o = hasSl ? 1 : 0;
+      return lines.slice(1).map((l) => { const c = cols(l); return { state: c[o] || "", city: c[o + 1] || "", name: c[o + 2] || "", address: c[o + 3] || "", person: c[o + 4] || "", contact: c[o + 5] || "", maps: c[o + 6] || "" }; })
+        .filter((r) => r.name && r.city);
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("dhCsvTemplate").addEventListener("click", (e) => {
+        e.preventDefault();
+        const csv = "Sl,State,City,Name,Address,Person,Contact,Maps\n1,Madhya Pradesh,Jhansi,Example Dharmshala,Station Road,Shri Example,9000000000,https://maps.google.com\n";
+        const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" })); a.download = "dharmshala_template.csv"; a.click();
+      });
+      document.getElementById("dhCsvFile").addEventListener("change", async (e) => {
+        const f = e.target.files[0]; if (!f) return;
+        dhCsvRows = parseDharmCsv(await f.text());
+        document.getElementById("dhCsvPreview").textContent = dhCsvRows.length ? `✅ ${dhCsvRows.length} entries मिलीं (पहली: ${dhCsvRows[0].name}, ${dhCsvRows[0].city})` : "❌ कोई सही row नहीं मिली (Name और City ज़रूरी हैं)।";
+        document.getElementById("dhCsvImport").style.display = dhCsvRows.length ? "block" : "none";
+      });
+      document.getElementById("dhCsvImport").addEventListener("click", async () => {
+        const btn = document.getElementById("dhCsvImport"); btn.disabled = true;
+        let done = 0, err = null;
+        for (let i = 0; i < dhCsvRows.length && !err; i += 100) {
+          const { error } = await gpSupabase.from("dharmshala").insert(dhCsvRows.slice(i, i + 100));
+          if (error) err = error.message; else done += Math.min(100, dhCsvRows.length - i);
+          btn.textContent = `⏳ ${done}/${dhCsvRows.length}`;
+        }
+        btn.disabled = false; btn.textContent = "⬆ सब जोड़ें";
+        if (err) { gpShowAlert("dhAlert", `${done} जुड़ीं, फिर error: ${err}`, "error"); return; }
+        gpShowAlert("dhAlert", `✅ ${done} Dharmshala जुड़ गईं।`, "success");
+        document.getElementById("dhCsvFile").value = ""; document.getElementById("dhCsvPreview").textContent = ""; btn.style.display = "none"; dhCsvRows = [];
+        if (typeof loadDharmshala === "function") loadDharmshala();
+      });
+    });
+  </script>
   <script>
     let myRole = null;
     let allEntries = [];
