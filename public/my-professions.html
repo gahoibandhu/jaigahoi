@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7a1f3d">
+  <title>मेरे Professional Tags — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .mp-wrap { max-width: 760px; margin: 18px auto; padding: 0 16px 40px; }
+    .mp-top { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .mp-top a { color: var(--primary); font-weight: 600; text-decoration: none; font-size: .9rem; }
+    .mp-box { background: var(--gp-card); border: 1px solid var(--border-soft); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); padding: 16px 18px; margin-bottom: 16px; }
+    .mp-box h3 { margin: 0 0 8px; color: var(--primary); font-size: 1.25rem; }
+    .mp-hint { font-size: .8rem; color: var(--gp-text-muted); margin-bottom: 10px; }
+    .mp-row { border: 1px solid var(--border-soft); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background: var(--paper); }
+    .mp-row .t { font-weight: 700; color: var(--primary); }
+    .mp-row .s { font-size: .82rem; color: var(--gp-text-muted); }
+    .mp-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .mp-actions button { font-size: .78rem; padding: 6px 12px; border-radius: 8px; border: 1.5px solid var(--gp-border); background: #fff; cursor: pointer; font-weight: 700; font-family: inherit; }
+    .mp-actions .ok { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+    .mp-actions .no { background: var(--error-soft); border-color: var(--error); color: var(--error); }
+    .mp-badge { font-size: .7rem; font-weight: 700; padding: 2px 9px; border-radius: 10px; margin-left: 6px; }
+    .b-un { background: var(--light-2); color: var(--muted); } .b-pe { background: var(--warning-soft); color: var(--warning); }
+    .b-ve { background: var(--success-soft); color: var(--success); } .b-re { background: var(--error-soft); color: var(--error); }
+    .mp-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    @media (max-width: 560px) { .mp-grid2 { grid-template-columns: 1fr; } }
+    #polBox { display: none; background: var(--warning-soft); border: 1px dashed var(--accent); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; }
+  </style>
+</head>
+<body>
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🎓 मेरे Professional Tags</h1><div class="gp-header-sub">डॉक्टर · इंजीनियर · अधिवक्ता · CA · जनप्रतिनिधि...</div></div>
+  </div>
+  <div class="mp-wrap">
+    <div class="mp-top"><a href="home.html">← Home</a><a href="professionals.html">समाज के विशिष्ट जन देखें →</a></div>
+    <div id="mpAlert" class="gp-alert"></div>
+
+    <div class="mp-box" id="reviewBox" style="display:none">
+      <h3>👀 आपकी पुष्टि चाहिए</h3>
+      <div class="mp-hint">ये tags पुराने data से सुझाए गए, या Admin/Coordinator ने जोड़े हैं। सही हों तो "✔ सही है" दबाएँ, ग़लत हों तो हटाएँ। जनप्रतिनिधि (राजनीति) वाले tags आपकी पुष्टि के बिना किसी को नहीं दिखते।</div>
+      <div id="reviewList"></div>
+    </div>
+
+    <div class="mp-box"><h3>मेरे Tags</h3><div id="myList"><div class="mp-hint">लोड हो रहा है...</div></div></div>
+
+    <div class="mp-box">
+      <h3 id="formTitle">➕ नया Tag जोड़ें</h3>
+      <div class="mp-hint">आपका tag Directory में सिर्फ़ Approved सदस्यों को दिखता है। Mobile/Email/पता इससे साझा नहीं होते। "सत्यापित ✅" badge Admin जाँच कर देता है।</div>
+      <form id="form">
+        <div class="gp-field"><label>श्रेणी *</label><select id="category" required></select></div>
+        <div class="mp-grid2">
+          <div class="gp-field"><label>पद / विशेषज्ञता का नाम</label><input type="text" id="title" placeholder="जैसे: Cardiologist, Civil Engineer, High Court Advocate"></div>
+          <div class="gp-field"><label>संस्था / फ़र्म / अस्पताल</label><input type="text" id="organization"></div>
+          <div class="gp-field"><label>विशेषज्ञता क्षेत्र</label><input type="text" id="specialization"></div>
+          <div class="gp-field"><label>योग्यता</label><input type="text" id="qualification" placeholder="MBBS, MD / B.Tech / LLB / CA"></div>
+          <div class="gp-field"><label>कार्य-स्थान (शहर)</label><input type="text" id="city"></div>
+          <div class="gp-field"><label>कौन देख सकता है</label><select id="visibility"><option value="members">सभी Approved सदस्य</option><option value="hidden">कोई नहीं (छुपा हुआ)</option></select></div>
+        </div>
+        <div id="polBox">
+          <b>🗳 जनप्रतिनिधि विवरण</b>
+          <div class="mp-grid2" style="margin-top:8px">
+            <div class="gp-field"><label>पद (जैसे: पार्षद, सरपंच, विधायक)</label><input type="text" id="d_office"></div>
+            <div class="gp-field"><label>दल (वैकल्पिक)</label><input type="text" id="d_party"></div>
+            <div class="gp-field"><label>स्तर</label><select id="d_level"><option value="">—</option><option value="local">स्थानीय</option><option value="district">ज़िला</option><option value="state">राज्य</option><option value="national">राष्ट्रीय</option></select></div>
+            <div class="gp-field"><label>क्षेत्र</label><input type="text" id="d_area"></div>
+          </div>
+        </div>
+        <div class="gp-field"><label>पंजीकरण / सदस्यता संख्या (वैकल्पिक — सिर्फ़ Admin को दिखेगी)</label><input type="text" id="regNo" placeholder="Medical Council / Bar Council / ICAI आदि"><div class="gp-hint">सत्यापन में काम आती है; Directory में कभी नहीं दिखती।</div></div>
+        <button type="submit" class="gp-btn" id="saveBtn">💾 सहेजें</button>
+        <button type="button" class="gp-btn gp-btn-secondary" id="cancelBtn" style="display:none;margin-top:8px">रद्द करें</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let me = null, cats = [], rows = [], privMap = {}, editingId = null;
+    function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    const catOf = (slug) => cats.find((c) => c.slug === slug) || { label_hi: slug, icon: "🏷", sensitive: false };
+    const BADGE = { unverified: ["b-un", "स्वयं-घोषित"], pending: ["b-pe", "⏳ जाँच में"], verified: ["b-ve", "✅ सत्यापित"], rejected: ["b-re", "❌ अस्वीकृत"] };
+
+    function rowHtml(r, review) {
+      const c = catOf(r.category_slug), b = BADGE[r.verification_status] || BADGE.unverified;
+      const d = r.details || {};
+      const pol = [d.office, d.party, d.area].filter(Boolean).join(" · ");
+      const sub = [r.organization, r.specialization, r.qualification, r.city].filter(Boolean).join(" · ");
+      const reg = privMap[r.id] ? ` · पंजी. ${esc(privMap[r.id])}` : "";
+      const note = r.verification_status === "rejected" && r.verification_note ? `<div class="s" style="color:var(--error)">कारण: ${esc(r.verification_note)}</div>` : "";
+      return `<div class="mp-row" data-id="${r.id}">
+        <div><span class="t">${esc(c.icon)} ${esc(c.label_hi)}${r.title ? " — " + esc(r.title) : ""}</span><span class="mp-badge ${b[0]}">${b[1]}</span>
+          ${r.visibility === "hidden" ? '<span class="mp-badge b-un">🙈 छुपा</span>' : ""}</div>
+        ${sub || reg ? `<div class="s">${esc(sub)}${reg}</div>` : ""}${pol ? `<div class="s">🗳 ${esc(pol)}</div>` : ""}${note}
+        ${review && c.sensitive ? '<div class="s" style="color:var(--warning)">⚠️ पुष्टि के बिना ये किसी को नहीं दिखेगा।</div>' : ""}
+        <div class="mp-actions">
+          ${review ? '<button class="ok" data-a="confirm">✔ सही है</button>' : ""}
+          <button data-a="edit">✏️ बदलें</button>
+          ${!review && ["unverified", "rejected"].includes(r.verification_status) ? '<button data-a="verify">🛡 सत्यापन का अनुरोध</button>' : ""}
+          <button class="no" data-a="del">🗑 हटाएँ</button>
+        </div></div>`;
+    }
+
+    async function load() {
+      const [{ data: cdata }, { data: pdata, error }] = await Promise.all([
+        gpSupabase.from("profession_categories").select("*").eq("active", true).order("sort_order"),
+        gpSupabase.from("person_professions").select("*").eq("person_gahoi_id", me.gahoi_id).is("deleted_at", null).order("created_at")
+      ]);
+      if (error) { gpShowAlert("mpAlert", "Load नहीं हो सका: " + error.message, "error"); return; }
+      cats = cdata || []; rows = pdata || [];
+      const ids = rows.map((r) => r.id);
+      privMap = {};
+      if (ids.length) { const { data: pv } = await gpSupabase.from("person_profession_private").select("profession_id,reg_no").in("profession_id", ids); (pv || []).forEach((p) => { privMap[p.profession_id] = p.reg_no; }); }
+      const sel = document.getElementById("category");
+      if (!sel.options.length) sel.innerHTML = cats.map((c) => `<option value="${esc(c.slug)}">${esc(c.icon)} ${esc(c.label_hi)}</option>`).join("");
+      const needs = rows.filter((r) => !r.member_confirmed);
+      document.getElementById("reviewBox").style.display = needs.length ? "block" : "none";
+      document.getElementById("reviewList").innerHTML = needs.map((r) => rowHtml(r, true)).join("");
+      const mine = rows.filter((r) => r.member_confirmed);
+      document.getElementById("myList").innerHTML = mine.length ? mine.map((r) => rowHtml(r, false)).join("") : '<div class="mp-hint">अभी कोई tag नहीं है — नीचे से जोड़ें।</div>';
+    }
+
+    function togglePol() { document.getElementById("polBox").style.display = document.getElementById("category").value === "politician" ? "block" : "none"; }
+    document.getElementById("category").addEventListener("change", togglePol);
+
+    function resetForm() {
+      editingId = null; document.getElementById("form").reset();
+      document.getElementById("formTitle").textContent = "➕ नया Tag जोड़ें";
+      document.getElementById("cancelBtn").style.display = "none"; togglePol();
+    }
+    document.getElementById("cancelBtn").addEventListener("click", resetForm);
+
+    function fillForm(r) {
+      editingId = r.id;
+      const set = (id, v) => { document.getElementById(id).value = v || ""; };
+      set("category", r.category_slug); set("title", r.title); set("organization", r.organization); set("specialization", r.specialization);
+      set("qualification", r.qualification); set("city", r.city); set("visibility", r.visibility); set("regNo", privMap[r.id]);
+      const d = r.details || {}; set("d_office", d.office); set("d_party", d.party); set("d_level", d.level); set("d_area", d.area);
+      document.getElementById("formTitle").textContent = "✏️ Tag बदलें";
+      document.getElementById("cancelBtn").style.display = "block"; togglePol();
+      document.getElementById("form").scrollIntoView({ behavior: "smooth" });
+    }
+
+    async function onAction(e) {
+      const btn = e.target.closest("button[data-a]"); if (!btn) return;
+      const id = btn.closest(".mp-row").dataset.id, r = rows.find((x) => x.id === id), a = btn.dataset.a;
+      gpHideAlert("mpAlert");
+      if (a === "edit") { fillForm(r); return; }
+      let res;
+      if (a === "confirm") res = await gpSupabase.from("person_professions").update({ member_confirmed: true }).eq("id", id);
+      else if (a === "verify") res = await gpSupabase.from("person_professions").update({ verification_status: "pending" }).eq("id", id);
+      else if (a === "del") { if (!confirm("यह tag हटाएँ?")) return; res = await gpSupabase.from("person_professions").update({ deleted_at: new Date().toISOString() }).eq("id", id); }
+      if (res && res.error) { gpShowAlert("mpAlert", res.error.message, "error"); return; }
+      gpShowAlert("mpAlert", a === "verify" ? "✅ सत्यापन का अनुरोध भेज दिया गया।" : "✅ हो गया।", "success");
+      await load();
+    }
+    document.getElementById("reviewList").addEventListener("click", onAction);
+    document.getElementById("myList").addEventListener("click", onAction);
+
+    document.getElementById("form").addEventListener("submit", async (e) => {
+      e.preventDefault(); gpHideAlert("mpAlert");
+      const v = (id) => document.getElementById(id).value.trim();
+      const cat = v("category");
+      const details = cat === "politician" ? { office: v("d_office"), party: v("d_party"), level: v("d_level"), area: v("d_area") } : {};
+      const payload = { category_slug: cat, title: v("title") || null, organization: v("organization") || null, specialization: v("specialization") || null,
+        qualification: v("qualification") || null, city: v("city") || null, visibility: v("visibility"), details };
+      const btn = document.getElementById("saveBtn"); btn.disabled = true;
+      let res, pid = editingId;
+      if (editingId) res = await gpSupabase.from("person_professions").update(payload).eq("id", editingId).select("id").single();
+      else res = await gpSupabase.from("person_professions").insert({ ...payload, person_gahoi_id: me.gahoi_id }).select("id").single();
+      if (res.error) {
+        btn.disabled = false;
+        gpShowAlert("mpAlert", /duplicate|uq_person_prof/i.test(res.error.message) ? "यह tag पहले से जुड़ा है।" : res.error.message, "error"); return;
+      }
+      pid = res.data.id;
+      const reg = v("regNo");
+      if (reg) await gpSupabase.from("person_profession_private").upsert({ profession_id: pid, reg_no: reg });
+      else if (editingId) await gpSupabase.from("person_profession_private").delete().eq("profession_id", pid);
+      btn.disabled = false;
+      gpShowAlert("mpAlert", "✅ सहेज लिया।", "success");
+      resetForm(); await load();
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      me = await gpGetMyProfile();
+      if (!me) { window.location.href = "complete-profile.html"; return; }
+      if (me.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      await load(); togglePol();
+    })();
+  </script>
+</body>
+</html>

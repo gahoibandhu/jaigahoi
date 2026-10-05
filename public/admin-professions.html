@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7a1f3d">
+  <title>Admin — Professional Tags</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .ap-wrap { max-width: 980px; margin: 18px auto; padding: 0 16px 40px; }
+    .ap-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+    .ap-tabs button { padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--paper); font-weight: 700; cursor: pointer; font-family: inherit; font-size: .84rem; }
+    .ap-tabs button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .ap-box { background: var(--gp-card); border: 1px solid var(--border-soft); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); padding: 16px 18px; margin-bottom: 14px; }
+    .ap-row { border: 1px solid var(--border-soft); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; background: var(--paper); display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap; align-items: center; }
+    .ap-row .t { font-weight: 700; color: var(--primary); } .ap-row .s { font-size: .8rem; color: var(--gp-text-muted); }
+    .ap-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ap-btns button { font-size: .78rem; padding: 6px 12px; border-radius: 8px; border: 1.5px solid var(--gp-border); background: #fff; cursor: pointer; font-weight: 700; font-family: inherit; }
+    .ap-btns .ok { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+    .ap-btns .no { background: var(--error-soft); border-color: var(--error); color: var(--error); }
+    .ap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    @media (max-width: 560px) { .ap-grid { grid-template-columns: 1fr; } }
+    .ap-search { display: flex; gap: 8px; } .ap-search input { flex: 1; padding: 9px 12px; border: 1.5px solid var(--gp-border); border-radius: 10px; font-family: inherit; }
+    .ap-chosen { background: var(--success-soft); border: 1px solid var(--success); border-radius: 10px; padding: 8px 12px; margin: 10px 0; font-size: .86rem; }
+    table.ap-t { width: 100%; border-collapse: collapse; font-size: .82rem; } table.ap-t td, table.ap-t th { padding: 6px 6px; border-bottom: 1px solid var(--border-soft); text-align: left; }
+    table.ap-t input[type=text], table.ap-t input[type=number], table.ap-t select { width: 100%; padding: 5px 6px; border: 1px solid var(--gp-border); border-radius: 6px; font-family: inherit; font-size: .8rem; }
+  </style>
+</head>
+<body>
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🎓 Professional Tags — Admin</h1><div class="gp-header-sub">सत्यापन · किसी को tag करें · सुझाए गए tags · Categories</div></div>
+  </div>
+  <div class="ap-wrap">
+    <a href="home.html" style="color:var(--primary);font-weight:600;text-decoration:none;font-size:.9rem">← Home</a>
+    <div id="apAlert" class="gp-alert"></div>
+    <div class="ap-tabs" id="tabs">
+      <button data-t="queue" class="active">🛡 सत्यापन Queue <span id="qCount"></span></button>
+      <button data-t="tag">➕ किसी को Tag करें</button>
+      <button data-t="auto">🤖 सुझाए गए (auto)</button>
+      <button data-t="cats" id="catsTab" style="display:none">🗂 Categories</button>
+    </div>
+
+    <div id="tab-queue" class="ap-box"></div>
+
+    <div id="tab-tag" class="ap-box" style="display:none">
+      <div class="ap-search"><input type="text" id="pSearch" placeholder="नाम या Gahoi ID से खोजें (Census entries भी)"><button class="gp-btn gp-btn-sm" id="pSearchBtn">खोजें</button></div>
+      <div id="pResults" style="margin-top:10px"></div>
+      <div id="chosen" class="ap-chosen" style="display:none"></div>
+      <form id="tagForm" style="display:none">
+        <div class="ap-grid">
+          <div class="gp-field"><label>श्रेणी *</label><select id="t_cat" required></select></div>
+          <div class="gp-field"><label>पद / विशेषज्ञता</label><input type="text" id="t_title"></div>
+          <div class="gp-field"><label>संस्था</label><input type="text" id="t_org"></div>
+          <div class="gp-field"><label>योग्यता</label><input type="text" id="t_qual"></div>
+          <div class="gp-field"><label>शहर</label><input type="text" id="t_city"></div>
+          <div class="gp-field"><label>विशेषज्ञता क्षेत्र</label><input type="text" id="t_spec"></div>
+        </div>
+        <div id="t_pol" style="display:none" class="ap-grid">
+          <div class="gp-field"><label>🗳 पद</label><input type="text" id="t_office"></div>
+          <div class="gp-field"><label>दल</label><input type="text" id="t_party"></div>
+          <div class="gp-field"><label>स्तर</label><select id="t_level"><option value="">—</option><option value="local">स्थानीय</option><option value="district">ज़िला</option><option value="state">राज्य</option><option value="national">राष्ट्रीय</option></select></div>
+          <div class="gp-field"><label>क्षेत्र</label><input type="text" id="t_area"></div>
+        </div>
+        <div class="gp-hint" id="t_note" style="margin-bottom:10px"></div>
+        <button class="gp-btn" type="submit">💾 Tag जोड़ें</button>
+      </form>
+    </div>
+
+    <div id="tab-auto" class="ap-box" style="display:none"></div>
+    <div id="tab-cats" class="ap-box" style="display:none"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    let me = null, isAdmin = false, cats = [], chosenPerson = null;
+    function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    const catOf = (s) => cats.find((c) => c.slug === s) || { label_hi: s, icon: "🏷", sensitive: false };
+    const pname = (r) => r.persons ? `${esc(r.persons.name)} <small>(${esc(r.persons.gahoi_id)}${r.persons.auth_uid ? "" : " · Census"}${r.persons.city ? " · " + esc(r.persons.city) : ""})</small>` : esc(r.person_gahoi_id);
+    const SEL = "*, persons!inner(name,gahoi_id,city,auth_uid)";
+
+    // ── Queue ──
+    async function loadQueue() {
+      const box = document.getElementById("tab-queue");
+      const { data, error } = await gpSupabase.from("person_professions").select(SEL).eq("verification_status", "pending").is("deleted_at", null).order("updated_at");
+      if (error) { box.innerHTML = "Load नहीं हुआ: " + esc(error.message); return; }
+      document.getElementById("qCount").textContent = data.length ? `(${data.length})` : "";
+      if (!data.length) { box.innerHTML = '<div class="gp-hint">कोई सत्यापन अनुरोध pending नहीं है।</div>'; return; }
+      const ids = data.map((r) => r.id);
+      const { data: pv } = await gpSupabase.from("person_profession_private").select("profession_id,reg_no,proof_url").in("profession_id", ids);
+      const priv = {}; (pv || []).forEach((p) => { priv[p.profession_id] = p; });
+      box.innerHTML = data.map((r) => { const c = catOf(r.category_slug), p = priv[r.id] || {};
+        return `<div class="ap-row" data-id="${r.id}"><div><div class="t">${esc(c.icon)} ${esc(c.label_hi)}${r.title ? " — " + esc(r.title) : ""}</div>
+          <div class="s">${pname(r)}</div><div class="s">${esc([r.organization, r.qualification, r.city].filter(Boolean).join(" · "))}</div>
+          <div class="s"><b>पंजी. संख्या:</b> ${esc(p.reg_no || "—")} ${p.proof_url ? `· <a href="${esc(p.proof_url)}" target="_blank" rel="noopener">प्रमाण</a>` : ""}</div></div>
+          <div class="ap-btns"><button class="ok" data-a="verify">✅ सत्यापित करें</button><button class="no" data-a="reject">❌ अस्वीकार</button></div></div>`; }).join("");
+    }
+    document.getElementById("tab-queue").addEventListener("click", async (e) => {
+      const b = e.target.closest("button[data-a]"); if (!b) return;
+      const id = b.closest(".ap-row").dataset.id; let patch;
+      if (b.dataset.a === "verify") patch = { verification_status: "verified", verification_note: null };
+      else { const why = prompt("अस्वीकार का कारण (member को दिखेगा):"); if (why === null) return; patch = { verification_status: "rejected", verification_note: why }; }
+      const { error } = await gpSupabase.from("person_professions").update(patch).eq("id", id);
+      if (error) { gpShowAlert("apAlert", error.message, "error"); return; }
+      gpShowAlert("apAlert", "✅ हो गया।", "success"); loadQueue();
+    });
+
+    // ── Tag a person ──
+    function fillCatSelect() { document.getElementById("t_cat").innerHTML = cats.filter((c) => c.active).map((c) => `<option value="${esc(c.slug)}">${esc(c.icon)} ${esc(c.label_hi)}</option>`).join(""); onCatChange(); }
+    function onCatChange() {
+      const c = catOf(document.getElementById("t_cat").value);
+      document.getElementById("t_pol").style.display = c.slug === "politician" ? "grid" : "none";
+      const reg = chosenPerson && chosenPerson.auth_uid;
+      document.getElementById("t_note").textContent = c.sensitive
+        ? (reg ? "⚠️ ये Sensitive श्रेणी है: tag तभी दूसरों को दिखेगा जब वह सदस्य अपने 'मेरे Professional Tags' पेज पर पुष्टि करेगा।" : "⚠️ Census entry पर Sensitive tag कभी सार्वजनिक नहीं होगा (पुष्टि संभव नहीं) — सिर्फ़ Admin को दिखेगा।")
+        : (reg ? "सदस्य को अपने पेज पर दिखेगा; वह बदल/हटा सकता है।" : "Census entry पर दिखेगा (सीमित जानकारी: नाम, शहर, मूल निवास, akna)।");
+    }
+    document.getElementById("t_cat").addEventListener("change", onCatChange);
+    document.getElementById("pSearchBtn").addEventListener("click", async () => {
+      const q = document.getElementById("pSearch").value.trim(); if (q.length < 2) return;
+      const { data, error } = await gpSupabase.from("persons").select("gahoi_id,name,city,auth_uid,claim_status").or(`name.ilike.%${q}%,gahoi_id.ilike.%${q}%`).limit(10);
+      if (error) { gpShowAlert("apAlert", error.message, "error"); return; }
+      document.getElementById("pResults").innerHTML = (data || []).map((p) => `<div class="ap-row"><div><span class="t">${esc(p.name)}</span> <small>(${esc(p.gahoi_id)}${p.auth_uid ? "" : " · Census"}${p.city ? " · " + esc(p.city) : ""})</small></div><div class="ap-btns"><button data-pick="${esc(p.gahoi_id)}" data-name="${esc(p.name)}" data-reg="${p.auth_uid ? 1 : 0}">चुनें</button></div></div>`).join("") || '<div class="gp-hint">कोई नहीं मिला।</div>';
+    });
+    document.getElementById("pResults").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-pick]"); if (!b) return;
+      chosenPerson = { gahoi_id: b.dataset.pick, name: b.dataset.name, auth_uid: b.dataset.reg === "1" };
+      const c = document.getElementById("chosen"); c.style.display = "block"; c.textContent = `चुना गया: ${chosenPerson.name} (${chosenPerson.gahoi_id})${chosenPerson.auth_uid ? "" : " · Census entry"}`;
+      document.getElementById("tagForm").style.display = "block"; document.getElementById("pResults").innerHTML = ""; onCatChange();
+    });
+    document.getElementById("tagForm").addEventListener("submit", async (e) => {
+      e.preventDefault(); if (!chosenPerson) return;
+      const v = (id) => document.getElementById(id).value.trim(), cat = v("t_cat");
+      const row = { person_gahoi_id: chosenPerson.gahoi_id, category_slug: cat, title: v("t_title") || null, organization: v("t_org") || null, qualification: v("t_qual") || null,
+        city: v("t_city") || null, specialization: v("t_spec") || null, visibility: "members",
+        details: cat === "politician" ? { office: v("t_office"), party: v("t_party"), level: v("t_level"), area: v("t_area") } : {} };
+      const { error } = await gpSupabase.from("person_professions").insert(row);
+      if (error) { gpShowAlert("apAlert", /duplicate|uq_person_prof/i.test(error.message) ? "यह tag इस व्यक्ति पर पहले से है।" : error.message, "error"); return; }
+      gpShowAlert("apAlert", "✅ Tag जुड़ गया।", "success"); document.getElementById("tagForm").reset(); onCatChange();
+    });
+
+    // ── Auto-suggested ──
+    async function loadAuto() {
+      const box = document.getElementById("tab-auto");
+      const { data, error } = await gpSupabase.from("person_professions").select(SEL).eq("source", "auto-migration").is("deleted_at", null).order("created_at", { ascending: false }).limit(300);
+      if (error) { box.innerHTML = esc(error.message); return; }
+      box.innerHTML = `<div class="gp-hint" style="margin-bottom:10px">पुराने Profession text से अपने-आप सुझाए गए tags (अधिकतम 300)। ग़लत लगे तो category बदलें या हटाएँ। सदस्य ख़ुद भी अपने पेज पर बदल सकता है।</div>` +
+        (data.length ? data.map((r) => `<div class="ap-row" data-id="${r.id}"><div><div class="t">${pname(r)}</div><div class="s">text: ${esc(r.title || "—")}</div></div>
+          <div class="ap-btns"><select class="a-cat">${cats.filter((c) => c.active && !c.sensitive).map((c) => `<option value="${esc(c.slug)}" ${c.slug === r.category_slug ? "selected" : ""}>${esc(c.icon)} ${esc(c.label_hi)}</option>`).join("")}</select>
+          <button class="ok" data-a="save">सहेजें</button><button class="no" data-a="del">हटाएँ</button></div></div>`).join("") : '<div class="gp-hint">कोई auto-suggested tag नहीं।</div>');
+    }
+    document.getElementById("tab-auto").addEventListener("click", async (e) => {
+      const b = e.target.closest("button[data-a]"); if (!b) return;
+      const row = b.closest(".ap-row"), id = row.dataset.id;
+      const patch = b.dataset.a === "del" ? { deleted_at: new Date().toISOString() } : { category_slug: row.querySelector(".a-cat").value };
+      const { error } = await gpSupabase.from("person_professions").update(patch).eq("id", id);
+      if (error) { gpShowAlert("apAlert", error.message, "error"); return; }
+      if (b.dataset.a === "del") row.remove(); else gpShowAlert("apAlert", "✅ सहेजा।", "success");
+    });
+
+    // ── Categories (Admin only) ──
+    function renderCats() {
+      const box = document.getElementById("tab-cats");
+      box.innerHTML = `<table class="ap-t"><tr><th>Slug</th><th>हिंदी</th><th>English</th><th>Icon</th><th>Group</th><th>Sort</th><th>Sensitive</th><th>Active</th><th></th></tr>` +
+        cats.map((c) => `<tr data-slug="${esc(c.slug)}"><td>${esc(c.slug)}</td><td><input type="text" class="c-hi" value="${esc(c.label_hi)}"></td><td><input type="text" class="c-en" value="${esc(c.label_en)}"></td>
+          <td><input type="text" class="c-ic" value="${esc(c.icon)}" style="width:50px"></td><td><input type="text" class="c-gr" value="${esc(c.group_key)}"></td><td><input type="number" class="c-so" value="${c.sort_order}" style="width:64px"></td>
+          <td><input type="checkbox" class="c-se" ${c.sensitive ? "checked" : ""}></td><td><input type="checkbox" class="c-ac" ${c.active ? "checked" : ""}></td><td><button class="gp-btn gp-btn-sm" data-a="save">💾</button></td></tr>`).join("") +
+        `<tr><td><input type="text" id="n_slug" placeholder="new_slug"></td><td><input type="text" id="n_hi" placeholder="हिंदी नाम"></td><td><input type="text" id="n_en" placeholder="English"></td><td><input type="text" id="n_ic" value="🏷" style="width:50px"></td><td><input type="text" id="n_gr" value="other"></td><td><input type="number" id="n_so" value="500" style="width:64px"></td><td><input type="checkbox" id="n_se"></td><td></td><td><button class="gp-btn gp-btn-sm" id="n_add">➕</button></td></tr></table>`;
+    }
+    document.getElementById("tab-cats").addEventListener("click", async (e) => {
+      const b = e.target.closest("button"); if (!b) return; let res;
+      if (b.id === "n_add") {
+        const slug = document.getElementById("n_slug").value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+        if (!slug || !document.getElementById("n_hi").value.trim()) { gpShowAlert("apAlert", "Slug (a-z, 0-9, _) और हिंदी नाम ज़रूरी हैं।", "error"); return; }
+        res = await gpSupabase.from("profession_categories").insert({ slug, label_hi: document.getElementById("n_hi").value.trim(), label_en: document.getElementById("n_en").value.trim() || slug,
+          icon: document.getElementById("n_ic").value || "🏷", group_key: document.getElementById("n_gr").value || "other", sort_order: +document.getElementById("n_so").value || 500, sensitive: document.getElementById("n_se").checked });
+      } else if (b.dataset.a === "save") {
+        const tr = b.closest("tr"), q = (s) => tr.querySelector(s);
+        res = await gpSupabase.from("profession_categories").update({ label_hi: q(".c-hi").value.trim(), label_en: q(".c-en").value.trim(), icon: q(".c-ic").value, group_key: q(".c-gr").value, sort_order: +q(".c-so").value || 100, sensitive: q(".c-se").checked, active: q(".c-ac").checked }).eq("slug", tr.dataset.slug);
+      } else return;
+      if (res.error) { gpShowAlert("apAlert", res.error.message, "error"); return; }
+      gpShowAlert("apAlert", "✅ सहेजा।", "success"); await loadCats();
+    });
+    async function loadCats() { const { data } = await gpSupabase.from("profession_categories").select("*").order("sort_order"); cats = data || []; fillCatSelect(); renderCats(); }
+
+    document.getElementById("tabs").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-t]"); if (!b) return;
+      document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("active", x === b));
+      ["queue", "tag", "auto", "cats"].forEach((t) => { document.getElementById("tab-" + t).style.display = t === b.dataset.t ? "block" : "none"; });
+      if (b.dataset.t === "queue") loadQueue(); if (b.dataset.t === "auto") loadAuto();
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      me = await gpGetMyProfile();
+      if (!me || (me.role !== "Admin" && me.role !== "Approver")) { window.location.href = "home.html"; return; }
+      isAdmin = me.role === "Admin";
+      if (isAdmin) document.getElementById("catsTab").style.display = "";
+      await loadCats(); await loadQueue();
+    })();
+  </script>
+</body>
+</html>

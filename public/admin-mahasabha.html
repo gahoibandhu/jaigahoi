@@ -32,6 +32,17 @@
     .gp-btn-reject { color: var(--gp-error); border-color: var(--gp-error) !important; }
     .gp-remarks { width: 100%; margin-top: 8px; padding: 8px; border: 1.5px solid var(--gp-border); border-radius: 8px; font-family: inherit; font-size: .82rem; resize: vertical; min-height: 40px; }
     .gp-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; }
+    .ms-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+    .ms-toolbar input[type=text], .ms-toolbar input[type=date] { padding: 7px 10px; border: 1.5px solid var(--gp-border); border-radius: 8px; font-family: inherit; font-size: .82rem; }
+    .ms-toolbar button { font-size: .8rem; padding: 7px 14px; border-radius: 8px; border: 1.5px solid var(--gp-border); background: #fff; cursor: pointer; font-weight: 700; }
+    .ms-counts { font-size: .82rem; color: var(--gp-text-muted); margin-bottom: 10px; }
+    .ms-detail { margin-top: 10px; padding: 10px; background: var(--gp-bg); border-radius: var(--gp-radius); font-size: .82rem; display: none; gap: 14px; flex-wrap: wrap; }
+    .ms-detail img.ph { width: 90px; height: 104px; object-fit: cover; border-radius: 6px; border: 1px solid var(--gp-border); }
+    .ms-detail img.sig { height: 56px; max-width: 200px; object-fit: contain; background: #fff; border: 1px solid var(--gp-border); border-radius: 6px; }
+    .ms-printed { font-size: .75rem; color: var(--gp-success); font-weight: 700; }
+    .ms-role-box { background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 14px 18px; box-shadow: var(--gp-shadow); margin-top: 22px; }
+    .ms-role-box h3 { margin: 0 0 8px; color: var(--primary); font-size: 1.2rem; }
+    .ms-role-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--gp-border); font-size: .86rem; }
   </style>
 </head>
 <body>
@@ -52,14 +63,34 @@
       <button data-filter="Rejected">❌ Rejected</button>
     </div>
 
+    <div class="ms-toolbar">
+      <input type="text" id="msSearch" placeholder="🔍 नाम / मोबाइल / Gahoi ID">
+      <label style="font-size:.8rem">से <input type="date" id="msFrom"></label>
+      <label style="font-size:.8rem">तक <input type="date" id="msTo"></label>
+      <button id="msSelAll">☑ सब चुनें</button>
+      <button id="msPrintSel">🖨 चुने हुए Print</button>
+      <button id="msCsv">⬇ Payments CSV</button>
+    </div>
+    <div class="ms-counts" id="msCounts"></div>
     <div id="appList"></div>
+
+    <div class="ms-role-box" id="roleBox" style="display:none">
+      <h3>🖨 Print Rights (mahasabhaPrint)</h3>
+      <div style="font-size:.8rem;color:var(--gp-text-muted);margin-bottom:8px">जिन्हें सिर्फ़ Mahasabha forms print/देखने का अधिकार देना हो।</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" id="roleSearch" placeholder="नाम से member खोजें..." style="flex:1;padding:8px 10px;border:1.5px solid var(--gp-border);border-radius:8px;font-family:inherit"><button class="gp-btn gp-btn-sm" id="roleSearchBtn">खोजें</button></div>
+      <div id="roleResults"></div>
+      <div style="margin-top:10px;font-weight:700;font-size:.85rem">अभी अधिकार वाले:</div>
+      <div id="roleCurrent"></div>
+    </div>
   </div>
 
   <script src="config.js"></script>
   <script src="common.js"></script>
+  <script src="msf-print.js"></script>
   <script>
     let myRole = null;
     let allApps = [];
+    let shownApps = [];
     let currentFilter = "all";
 
     function fmtDate(d) {
@@ -93,7 +124,15 @@
     function renderList() {
       const listEl = document.getElementById("appList");
       listEl.innerHTML = "";
-      const filtered = currentFilter === "all" ? allApps : allApps.filter((a) => a.status === currentFilter);
+      let filtered = currentFilter === "all" ? allApps : allApps.filter((a) => a.status === currentFilter);
+      const q = (document.getElementById("msSearch").value || "").trim().toLowerCase();
+      const from = document.getElementById("msFrom").value, to = document.getElementById("msTo").value;
+      if (q) filtered = filtered.filter((a) => ((a._person.name || "") + " " + (a._person.mobile || "") + " " + a.member_gahoi_id).toLowerCase().includes(q));
+      if (from) filtered = filtered.filter((a) => (a.applied_at || "").slice(0, 10) >= from);
+      if (to) filtered = filtered.filter((a) => (a.applied_at || "").slice(0, 10) <= to);
+      shownApps = filtered;
+      const cnt = { Pending: 0, Approved: 0, Rejected: 0 }; filtered.forEach((a) => { if (cnt[a.status] !== undefined) cnt[a.status]++; });
+      document.getElementById("msCounts").textContent = `कुल ${filtered.length} · ⏳ ${cnt.Pending} · ✅ ${cnt.Approved} · ❌ ${cnt.Rejected} · 💰 प्राप्त ${filtered.filter((a) => a.payment_received).length} · 📤 Forwarded ${filtered.filter((a) => a.payment_forwarded).length} · 📄 Form जमा ${filtered.filter((a) => a.form_submitted).length}`;
       if (filtered.length === 0) { listEl.innerHTML = `<div class="gp-empty">कोई application नहीं मिली।</div>`; return; }
 
       filtered.forEach((a) => {
@@ -105,6 +144,7 @@
         card.innerHTML = `
           <div class="gp-app-top">
             <div>
+              <label style="font-size:.78rem;color:var(--gp-text-muted)"><input type="checkbox" class="ms-chk"> चुनें</label>
               <div class="gp-app-name">${p.name || a.member_gahoi_id}</div>
               <div class="gp-app-meta">
                 📞 ${p.mobile || "—"} &nbsp;|&nbsp; 🏙 ${p.city || "—"} &nbsp;|&nbsp; 🏡 ${p.akna || "—"}<br>
@@ -131,6 +171,22 @@
             ${canDecide && a.status !== "Approved" ? `<button class="gp-btn-approve" data-action="approve">✅ Approve करें</button>` : ""}
             ${canDecide && a.status !== "Rejected" ? `<button class="gp-btn-reject" data-action="reject">❌ Reject करें</button>` : ""}
             <button data-action="save-remarks">💾 Remarks/Checks Save करें</button>
+            <button data-action="print">🖨 Print</button>
+            <button data-action="mark-printed">✔ Printed मार्क करें</button>
+            <button data-action="detail">👁 Detail</button>
+            ${myRole === "Admin" ? `<button class="gp-btn-reject" data-action="reset">↺ Reset (दोबारा apply)</button>` : ""}
+          </div>
+          ${fd.printedAt ? `<div class="ms-printed">🖨 Printed: ${fmtDate(fd.printedAt)}${fd.printedBy ? " — " + fd.printedBy : ""}</div>` : ""}
+          <div class="ms-detail">
+            ${(fd.photo || p.photo) ? `<img class="ph" src="${fd.photo || p.photo}" alt="">` : ""}
+            <div>
+              <div><b>मूल निवास:</b> ${fd.mool || "—"} &nbsp; <b>वर्तमान शहर:</b> ${fd.vartaman || p.city || "—"}</div>
+              <div><b>पता:</b> ${fd.address || "—"}</div>
+              <div><b>Email:</b> ${p.email || "—"}</div>
+              <div><b>Payment ID:</b> ${a.payment_id || "—"} &nbsp; <b>Order:</b> ${a.order_id || "—"}</div>
+              ${fd.rejectedReason ? `<div style="color:var(--gp-error)"><b>Reject कारण:</b> ${fd.rejectedReason}</div>` : ""}
+              <div style="margin-top:6px"><b>हस्ताक्षर:</b><br>${fd.signature ? `<img class="sig" src="${fd.signature}" alt="">` : "—"}</div>
+            </div>
           </div>
         `;
 
@@ -151,9 +207,14 @@
               const reason = prompt("Reject करने का कारण (optional):", "");
               await setDecision(a, "Rejected", reason || "");
             } else if (action === "save-remarks") await saveRemarks(a, remarksEl.value.trim());
+            else if (action === "print") gpMsfPrint([{ row: a, person: a._person }]) || gpShowAlert("amAlert", "Print window block हो गई — popup allow करें।", "error");
+            else if (action === "mark-printed") await markPrinted(a);
+            else if (action === "detail") { const d = card.querySelector(".ms-detail"); d.style.display = d.style.display === "flex" ? "none" : "flex"; }
+            else if (action === "reset") await resetApplication(a);
           });
         });
 
+        card._app = a;
         listEl.appendChild(card);
       });
     }
@@ -189,6 +250,65 @@
       await loadApplications();
     }
 
+    async function markPrinted(app) {
+      const me = (await gpGetMyProfile()) || {};
+      const merged = { ...(app.form_data || {}), printedAt: new Date().toISOString(), printedBy: me.name || window.__gpMyGahoiId };
+      const { error } = await gpSupabase.from("panchayat_memberships").update({ form_data: merged }).eq("id", app.id);
+      if (error) { gpShowAlert("amAlert", "Mark नहीं हो सका: " + error.message, "error"); return; }
+      gpShowAlert("amAlert", "✅ Printed मार्क हो गया।", "success");
+      await loadApplications();
+    }
+
+    // legacy resetMahasabhaApplication: row हटाओ ताकि member दोबारा apply कर सके (सिर्फ़ Admin; migration 0018)
+    async function resetApplication(app) {
+      if (!confirm("इस member की Mahasabha application हटाकर reset करें? (दोबारा apply कर सकेगा)")) return;
+      const { error } = await gpSupabase.from("panchayat_memberships").delete().eq("id", app.id);
+      if (error) { gpShowAlert("amAlert", "Reset नहीं हो सका: " + error.message, "error"); return; }
+      gpShowAlert("amAlert", "↺ Reset हो गया।", "success");
+      await loadApplications();
+    }
+
+    function checkedItems() {
+      const out = [];
+      document.querySelectorAll("#appList .gp-app-card").forEach((c) => { if (c.querySelector(".ms-chk").checked) out.push({ row: c._app, person: c._app._person }); });
+      return out;
+    }
+    document.getElementById("msSelAll").addEventListener("click", () => {
+      const boxes = [...document.querySelectorAll("#appList .ms-chk")];
+      const all = boxes.every((b) => b.checked); boxes.forEach((b) => { b.checked = !all; });
+    });
+    document.getElementById("msPrintSel").addEventListener("click", () => {
+      const items = checkedItems();
+      if (!items.length) { gpShowAlert("amAlert", "कोई application select नहीं है।", "error"); return; }
+      if (!gpMsfPrint(items)) gpShowAlert("amAlert", "Print window block हो गई — popup allow करें।", "error");
+    });
+    document.getElementById("msCsv").addEventListener("click", () => {
+      if (!gpMsfDownloadPaymentsCSV(shownApps.map((a) => ({ row: a, person: a._person })))) gpShowAlert("amAlert", "कोई payment नहीं मिली।", "error");
+    });
+    ["msSearch", "msFrom", "msTo"].forEach((id) => document.getElementById(id).addEventListener("input", renderList));
+
+    // ── Print Rights manager (legacy msfGrantRole/msfRevokeRole) — Admin only, admin-set-role fn ──
+    async function loadRoleHolders() {
+      const { data } = await gpSupabase.from("persons").select("gahoi_id,name,city").eq("role", "mahasabhaPrint");
+      const el = document.getElementById("roleCurrent");
+      el.innerHTML = (data && data.length) ? data.map((p) => `<div class="ms-role-row"><span>${p.name} <small>(${p.gahoi_id}${p.city ? " · " + p.city : ""})</small></span><button class="gp-btn gp-btn-secondary gp-btn-sm" data-revoke="${p.gahoi_id}">हटाएँ</button></div>`).join("") : `<div class="gp-empty" style="padding:10px 0">कोई नहीं</div>`;
+      el.querySelectorAll("[data-revoke]").forEach((b) => b.addEventListener("click", () => setPrintRole(b.dataset.revoke, "")));
+    }
+    async function setPrintRole(gid, role) {
+      const r = await gpCallFunction("admin-set-role", { targetGahoiId: gid, role });
+      if (!r || r.success === false) { gpShowAlert("amAlert", (r && r.message) || "Role नहीं बदला।", "error"); return; }
+      gpShowAlert("amAlert", role ? "✅ Print अधिकार दे दिया।" : "✅ Print अधिकार हटा दिया।", "success");
+      document.getElementById("roleResults").innerHTML = "";
+      await loadRoleHolders();
+    }
+    document.getElementById("roleSearchBtn").addEventListener("click", async () => {
+      const q = document.getElementById("roleSearch").value.trim();
+      if (q.length < 2) return;
+      const { data } = await gpSupabase.from("persons").select("gahoi_id,name,city,role,status").ilike("name", "%" + q + "%").eq("status", "Approved").limit(8);
+      document.getElementById("roleResults").innerHTML = (data || []).map((p) => `<div class="ms-role-row"><span>${p.name} <small>(${p.gahoi_id}${p.city ? " · " + p.city : ""}${p.role ? " · " + p.role : ""})</small></span>${p.role ? "" : `<button class="gp-btn gp-btn-sm" data-grant="${p.gahoi_id}">अधिकार दें</button>`}</div>`).join("") || `<div class="gp-empty" style="padding:10px 0">कोई नहीं मिला</div>`;
+      document.querySelectorAll("[data-grant]").forEach((b) => b.addEventListener("click", () => setPrintRole(b.dataset.grant, "mahasabhaPrint")));
+    });
+
     document.querySelectorAll(".gp-toggle-tabs button").forEach((btn) => {
       btn.addEventListener("click", () => {
         document.querySelectorAll(".gp-toggle-tabs button").forEach((b) => b.classList.remove("active"));
@@ -212,6 +332,7 @@
         return;
       }
       await loadApplications();
+      if (myRole === "Admin") { document.getElementById("roleBox").style.display = "block"; loadRoleHolders(); }
     })();
   </script>
 </body>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7a1f3d">
+  <title>समाज के विशिष्ट जन — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .pf-wrap { max-width: 980px; margin: 18px auto; padding: 0 16px 40px; }
+    .pf-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .pf-top a { color: var(--primary); font-weight: 600; text-decoration: none; font-size: .9rem; }
+    .pf-chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 14px; }
+    .pf-chip { background: var(--paper); border: 1.5px solid var(--border); border-radius: 999px; padding: 6px 13px; font-size: .82rem; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--text); transition: var(--transition); }
+    .pf-chip:hover { border-color: var(--accent); }
+    .pf-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .pf-chip small { opacity: .75; margin-left: 3px; }
+    .pf-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; background: var(--gp-card); border: 1px solid var(--border-soft); border-radius: var(--gp-radius-lg); padding: 12px 14px; box-shadow: var(--gp-shadow); }
+    .pf-filters input[type=text] { flex: 1; min-width: 160px; padding: 9px 12px; border: 1.5px solid var(--gp-border); border-radius: 10px; font-family: inherit; font-size: .9rem; }
+    .pf-filters label { font-size: .84rem; display: flex; gap: 6px; align-items: center; }
+    .pf-count { margin: 12px 2px; font-size: .84rem; color: var(--gp-text-muted); }
+    .pf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+    .pf-card { background: var(--gp-card); border: 1px solid var(--border-soft); border-radius: var(--gp-radius-lg); box-shadow: var(--gp-shadow); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+    .pf-head { display: flex; gap: 12px; align-items: center; }
+    .pf-avatar { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); background: var(--light-2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+    .pf-name { font-weight: 700; color: var(--primary); font-size: 1.02rem; line-height: 1.2; }
+    .pf-meta { font-size: .78rem; color: var(--gp-text-muted); }
+    .pf-census { display: inline-block; font-size: .68rem; font-weight: 700; background: var(--warning-soft); color: var(--warning); border: 1px solid var(--accent); border-radius: 10px; padding: 1px 8px; margin-top: 3px; }
+    .pf-tag { background: var(--light); border: 1px solid var(--border-soft); border-radius: 10px; padding: 7px 10px; font-size: .84rem; }
+    .pf-tag b { color: var(--primary); }
+    .pf-ver { color: var(--success); font-weight: 700; font-size: .74rem; margin-left: 4px; }
+    .pf-sub { color: var(--gp-text-muted); font-size: .78rem; }
+    .pf-pager { display: flex; justify-content: center; gap: 10px; margin: 18px 0; }
+    .pf-empty { text-align: center; color: var(--gp-text-muted); padding: 40px 0; }
+  </style>
+</head>
+<body>
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🎓 समाज के विशिष्ट जन</h1><div class="gp-header-sub">डॉक्टर · इंजीनियर · अधिवक्ता · CA · समाजसेवी · जनप्रतिनिधि और अन्य</div></div>
+  </div>
+  <div class="pf-wrap">
+    <div class="pf-top"><a href="home.html">← Home</a><a href="my-professions.html">✏️ मेरे Professional Tags</a></div>
+    <div id="pfAlert" class="gp-alert"></div>
+    <div class="pf-chips" id="chips"></div>
+    <div class="pf-filters">
+      <input type="text" id="q" placeholder="🔍 नाम / विशेषज्ञता / संस्था / akna">
+      <input type="text" id="city" placeholder="📍 शहर" style="max-width:180px">
+      <label><input type="checkbox" id="verifiedOnly"> ✅ सिर्फ़ सत्यापित</label>
+    </div>
+    <div class="pf-count" id="count"></div>
+    <div class="pf-grid" id="grid"></div>
+    <div class="pf-pager"><button class="gp-btn gp-btn-secondary gp-btn-sm" id="prev">← पिछला</button><button class="gp-btn gp-btn-secondary gp-btn-sm" id="next">अगला →</button></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    const PAGE = 20;
+    let category = new URLSearchParams(location.search).get("cat") || "";
+    let offset = 0, total = 0, debounce;
+    function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    const LEVELS = { national: "राष्ट्रीय", state: "राज्य", district: "ज़िला", local: "स्थानीय" };
+
+    async function loadChips() {
+      const { data, error } = await gpSupabase.rpc("profession_category_counts");
+      if (error) { gpShowAlert("pfAlert", "Categories load नहीं हुईं: " + error.message, "error"); return; }
+      const allCount = (data || []).reduce((a, c) => a + Number(c.people), 0);
+      document.getElementById("chips").innerHTML =
+        `<button class="pf-chip ${category ? "" : "active"}" data-cat="">सभी</button>` +
+        (data || []).filter((c) => Number(c.people) > 0 || c.slug === category)
+          .map((c) => `<button class="pf-chip ${c.slug === category ? "active" : ""}" data-cat="${esc(c.slug)}">${esc(c.icon)} ${esc(c.label_hi)}<small>${c.people}</small></button>`).join("");
+    }
+
+    function tagHtml(t) {
+      const d = t.details || {};
+      const pol = [d.office, d.party, d.level ? LEVELS[d.level] || d.level : "", d.area].filter(Boolean).join(" · ");
+      const sub = [t.organization, t.specialization, t.qualification, t.city].filter(Boolean).join(" · ");
+      return `<div class="pf-tag">${esc(t.icon)} <b>${esc(t.label_hi)}</b>${t.title ? " — " + esc(t.title) : ""}${t.verified ? '<span class="pf-ver">✅ सत्यापित</span>' : ""}
+        ${sub ? `<div class="pf-sub">${esc(sub)}</div>` : ""}${pol ? `<div class="pf-sub">🗳 ${esc(pol)}</div>` : ""}</div>`;
+    }
+
+    async function search() {
+      const grid = document.getElementById("grid");
+      grid.innerHTML = '<div class="pf-empty">लोड हो रहा है...</div>';
+      const { data, error } = await gpSupabase.rpc("search_professionals", {
+        p_category: category || null, p_q: document.getElementById("q").value.trim() || null,
+        p_city: document.getElementById("city").value.trim() || null,
+        p_verified_only: document.getElementById("verifiedOnly").checked, p_limit: PAGE, p_offset: offset
+      });
+      if (error) { grid.innerHTML = ""; gpShowAlert("pfAlert", "खोज नहीं हो सकी: " + error.message, "error"); return; }
+      total = data && data.length ? Number(data[0].total_count) : 0;
+      document.getElementById("count").textContent = total ? `कुल ${total} लोग${total > PAGE ? " · पृष्ठ " + (Math.floor(offset / PAGE) + 1) : ""}` : "";
+      document.getElementById("prev").style.display = offset > 0 ? "" : "none";
+      document.getElementById("next").style.display = offset + PAGE < total ? "" : "none";
+      if (!data || !data.length) { grid.innerHTML = '<div class="pf-empty">कोई नहीं मिला। फ़िल्टर बदलकर देखें, या <a href="my-professions.html">अपना Professional Tag जोड़ें</a>।</div>'; return; }
+      grid.innerHTML = data.map((p) => `
+        <div class="pf-card">
+          <div class="pf-head">
+            ${p.photo ? `<img class="pf-avatar" src="${esc(p.photo)}" alt="">` : `<div class="pf-avatar">👤</div>`}
+            <div><div class="pf-name">${esc(p.name)}</div>
+              <div class="pf-meta">${esc([p.city, p.native ? "मूल: " + p.native : "", p.akna].filter(Boolean).join(" · "))}</div>
+              ${p.is_registered ? "" : '<span class="pf-census">📋 Census Entry — Unverified</span>'}</div>
+          </div>
+          ${(p.tags || []).map(tagHtml).join("")}
+          ${p.is_registered ? `<a class="gp-btn gp-btn-sm" style="text-align:center" href="messages.html?with=${encodeURIComponent(p.gahoi_id)}">✉️ संदेश भेजें</a>` : ""}
+        </div>`).join("");
+    }
+
+    document.getElementById("chips").addEventListener("click", (e) => {
+      const b = e.target.closest(".pf-chip"); if (!b) return;
+      category = b.dataset.cat; offset = 0; loadChips(); search();
+    });
+    ["q", "city"].forEach((id) => document.getElementById(id).addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(() => { offset = 0; search(); }, 350); }));
+    document.getElementById("verifiedOnly").addEventListener("change", () => { offset = 0; search(); });
+    document.getElementById("prev").addEventListener("click", () => { offset = Math.max(0, offset - PAGE); search(); scrollTo(0, 0); });
+    document.getElementById("next").addEventListener("click", () => { offset += PAGE; search(); scrollTo(0, 0); });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const me = await gpGetMyProfile();
+      if (!me) { window.location.href = "complete-profile.html"; return; }
+      if (me.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      await loadChips();
+      await search();
+    })();
+  </script>
+</body>
+</html>

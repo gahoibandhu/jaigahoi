@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biodata — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    body { background: #fff; background-image: none; }
+    .bd-bar { position: sticky; top: 0; z-index: 10; background: #fff; padding: 10px; text-align: center; border-bottom: 2px solid var(--border); display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
+    .bd-bar button, .bd-bar a { background: var(--primary); color: #fff; border: none; padding: 9px 20px; border-radius: 8px; font-size: .92rem; font-weight: 700; cursor: pointer; text-decoration: none; font-family: inherit; }
+    .bd-bar a.sec { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); }
+    .bd-page { max-width: 780px; margin: 0 auto; padding: 18px 22px 40px; color: #111; }
+    .bd-head { text-align: center; border-bottom: 3px double var(--accent); padding-bottom: 10px; margin-bottom: 14px; }
+    .bd-head .om { font-size: 1.3rem; color: var(--accent); }
+    .bd-head h1 { margin: 2px 0; color: var(--primary); font-size: 1.7rem; }
+    .bd-head p { margin: 0; color: #666; font-size: .78rem; }
+    .bd-top { display: flex; gap: 18px; align-items: flex-start; margin-bottom: 14px; }
+    .bd-photos { display: flex; flex-direction: column; gap: 8px; width: 170px; flex-shrink: 0; }
+    .bd-photos img { width: 170px; max-height: 210px; object-fit: cover; border-radius: 8px; border: 2px solid var(--accent); }
+    .bd-name { font-family: var(--font-display); font-size: 1.8rem; font-weight: 700; color: var(--primary); line-height: 1.1; }
+    .bd-sub { color: #555; font-size: .9rem; margin: 4px 0 8px; }
+    .bd-badge { display: inline-block; font-size: .72rem; font-weight: 700; padding: 2px 10px; border-radius: 12px; margin-right: 6px; background: var(--warning-soft); color: var(--warning); border: 1px solid var(--accent); }
+    .bd-sec { margin-top: 14px; page-break-inside: avoid; }
+    .bd-sec h3 { margin: 0 0 6px; font-size: 1.05rem; color: #fff; background: linear-gradient(90deg, var(--primary), var(--primary2)); padding: 4px 12px; border-radius: 6px; letter-spacing: .3px; }
+    .bd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 22px; font-size: .88rem; }
+    .bd-row { display: flex; gap: 8px; border-bottom: 1px dotted #ccc; padding: 3px 0; }
+    .bd-row .k { color: #666; min-width: 120px; flex-shrink: 0; }
+    .bd-row .v { font-weight: 600; word-break: break-word; }
+    .bd-full { grid-column: 1 / -1; }
+    .bd-note { margin-top: 18px; font-size: .74rem; color: #888; text-align: center; border-top: 1px solid #ddd; padding-top: 8px; }
+    .bd-msg { text-align: center; padding: 60px 16px; color: #666; }
+    @media (max-width: 560px) { .bd-top { flex-direction: column; align-items: center; } .bd-grid { grid-template-columns: 1fr; } }
+    @media print {
+      .bd-bar { display: none !important; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .bd-page { padding: 0; max-width: none; }
+      @page { size: A4; margin: 12mm 14mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bd-bar">
+    <button id="printBtn">🖨️ Print / Save as PDF</button>
+    <a class="sec" href="matrimony.html">← Matrimony</a>
+  </div>
+  <div class="bd-page" id="bdPage"><div class="bd-msg">लोड हो रहा है...</div></div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    const PHOTO_LIMIT = { Gold: 1, Platinum: 2, Diamond: 4 };
+    function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    function msg(t) { document.getElementById("bdPage").innerHTML = `<div class="bd-msg">${esc(t)}</div>`; }
+    function row(k, v, full) { return v ? `<div class="bd-row ${full ? "bd-full" : ""}"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>` : ""; }
+    function sec(title, rowsHtml) { return rowsHtml.trim() ? `<div class="bd-sec"><h3>${title}</h3><div class="bd-grid">${rowsHtml}</div></div>` : ""; }
+
+    // matrimony-list Edge Function के effectivePhotos जैसा — tier-limit, expire होने पर सिर्फ़ मुख्य फोटो
+    function effectivePhotos(p) {
+      let all = [];
+      try { all = Array.isArray(p.photos) ? p.photos : JSON.parse(p.photos || "[]"); } catch (e) { all = []; }
+      all = all.filter(Boolean);
+      if (!all.length && p.photo) all = [p.photo];
+      let expired = false;
+      if (p.valid_until) { const ex = new Date(p.valid_until); ex.setHours(23, 59, 59, 999); expired = ex.getTime() < Date.now(); }
+      const limit = PHOTO_LIMIT[p.tier] || 1;
+      return expired ? all.slice(0, 1) : all.slice(0, limit);
+    }
+
+    function render(p, isOwn) {
+      const photos = effectivePhotos(p);
+      const v = p.verification || {};
+      const age = (() => { const m = String(p.dob || "").match(/(\d{2})-(\d{2})-(\d{4})/) || String(p.dob || "").match(/(\d{4})-(\d{2})-(\d{2})/); if (!m) return ""; const y = m[0].indexOf("-") === 4 ? +m[1] : +m[3]; const a = new Date().getFullYear() - y; return a > 0 && a < 100 ? a + " वर्ष" : ""; })();
+
+      const personal = row("नाम", p.name) + row("जन्म तिथि", p.dob) + row("आयु", age) + row("जन्म समय", p.birth_time) + row("जन्म स्थान", p.birth_city)
+        + row("ऊँचाई", p.height) + row("रंग", p.complexion) + row("वैवाहिक स्थिति", p.marital) + row("मांगलिक", p.manglik) + row("Profile किसके लिए", p.profile_for);
+      const edu = row("शिक्षा", p.education) + row("व्यवसाय", p.occupation) + row("कंपनी", p.job_company) + row("कार्य-स्थान", p.job_city) + row("आय", p.income);
+      const loc = row("वर्तमान शहर", p.city) + row("मूल निवास", p.native) + row("गोत्र", p.gotra) + row("आंकना", p.akna) + (isOwn ? row("पता", p.address, true) : "");
+      const fam = row("पिता", p.father) + row("पिता का व्यवसाय", p.father_occ) + row("माता", p.mother) + row("मामा", p.mama) + row("भाई", p.brothers) + row("बहन", p.sisters)
+        + row("दादाजी", p.dadaji) + row("दादीजी", p.dadiji) + row("नानाजी", p.nanaji) + row("नानीजी", p.naniji)
+        + row("ताऊ", p.tau) + row("चाचा", p.chacha) + row("बुआ", p.bua) + row("मौसी", p.mausi) + row("दीदी", p.didi);
+      const kundali = row("राशि", p.rashi) + row("गण", p.gan) + row("नक्षत्र", p.nakshatra);
+      const pref = row("अपेक्षित शिक्षा", p.pref_edu) + row("अपेक्षित आयु", p.pref_age) + row("अपेक्षित शहर", p.pref_city) + row("अन्य अपेक्षा", p.pref_other, true);
+      const contact = isOwn ? row("संपर्क नाम", p.contact_name) + row("मोबाइल", p.mobile) : "";
+
+      document.title = (p.name || "Biodata") + " — Biodata";
+      document.getElementById("bdPage").innerHTML = `
+        <div class="bd-head"><div class="om">॥ श्री गणेशाय नमः ॥</div><h1>विवाह परिचय / Biodata</h1><p>गहोई पोर्टल · jaigahoi.in</p></div>
+        <div class="bd-top">
+          ${photos.length ? `<div class="bd-photos">${photos.map((u) => `<img src="${esc(u)}" alt="">`).join("")}</div>` : ""}
+          <div style="flex:1">
+            <div class="bd-name">${esc(p.name)}</div>
+            <div class="bd-sub">${esc([age, p.education, p.occupation, p.city].filter(Boolean).join(" · "))}</div>
+            <div>${v.status === "verified" ? `<span class="bd-badge">✔ Verified</span>` : ""}<span class="bd-badge">${esc(p.tier || "Gold")}</span></div>
+            ${p.about ? `<p style="font-size:.9rem;margin:10px 0 0;color:#333">${esc(p.about)}</p>` : ""}
+          </div>
+        </div>
+        ${sec("व्यक्तिगत विवरण", personal)}${sec("शिक्षा एवं व्यवसाय", edu)}${sec("निवास एवं कुल", loc)}${sec("पारिवारिक विवरण", fam)}${sec("कुंडली विवरण", kundali)}${sec("अपेक्षाएँ", pref)}${sec("संपर्क", contact)}
+        <div class="bd-note">संपर्क के लिए गहोई पोर्टल पर Interest भेजें · यह biodata jaigahoi.in से बनाया गया है।</div>`;
+    }
+
+    document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+    (async () => {
+      const session = await gpRequireLogin("login.html");
+      if (!session) return;
+      const me = await gpGetMyProfile();
+      if (!me) { window.location.href = "complete-profile.html"; return; }
+      if (me.status !== "Approved") { window.location.href = "pending-approval.html"; return; }
+      const id = new URLSearchParams(location.search).get("id");
+      if (!id) { msg("Profile ID नहीं मिली।"); return; }
+
+      // mobile/contact_name/address सिर्फ़ मालिक के लिए — बाक़ी के लिए SELECT में ही नहीं
+      const base = "id, created_by, status, deleted_at, profile_for, gender, marital, name, dob, height, complexion, manglik, education, occupation, income, city, native, gotra, akna, father, father_occ, mother, mama, brothers, sisters, pref_edu, pref_age, pref_city, pref_other, about, photo, photos, birth_time, birth_city, rashi, gan, nakshatra, dadaji, nanaji, tau, bua, chacha, mausi, didi, dadiji, naniji, tier, valid_until, job_company, job_city, verification";
+      let { data, error } = await gpSupabase.from("matrimony_profiles").select(base).eq("id", id).maybeSingle();
+      if (error) { msg("Load नहीं हो सका: " + error.message); return; }
+      if (!data || data.deleted_at) { msg("यह profile उपलब्ध नहीं है।"); return; }
+      const isOwn = data.created_by === me.gahoi_id;
+      if (data.status !== "Approved" && !isOwn && me.role !== "Admin" && me.role !== "Approver") { msg("यह profile अभी सक्रिय नहीं है।"); return; }
+      if (isOwn) {
+        const { data: priv } = await gpSupabase.from("matrimony_profiles").select("mobile, contact_name, address").eq("id", id).maybeSingle();
+        if (priv) data = { ...data, ...priv };
+      }
+      render(data, isOwn);
+    })();
+  </script>
+</body>
+</html>
