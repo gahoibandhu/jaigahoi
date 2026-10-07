@@ -1,0 +1,30 @@
+﻿=== Members
+"Timestamp","Name","Father","Mobile","Email","Profession","Designation","Address","City","Pincode","Native","Akna","Birthday","Anniversary","Status","Role","Marital","Spouse","ShowMobile","Keywords","Photo","BloodGroup","Password","ApprovedBy","ApprovedAt","StreetAddress","Locality","Landmark","LinkedIn","Twitter","Instagram","Facebook","Hobbies","School","About","PrivacySettings","PublicUrlEnabled","ProfileTier","CompletionPercent","GahoiId","ReferredBy","KnownMembers","MahasabhaStatus","MahasabhaAppliedAt","MahasabhaData","MahasabhaPrintedAt","MahasabhaPrintedBy","MahasabhaPrintFlag"
+=== Messages
+"ID","FromEmail","FromName","ToEmail","ToName","Subject","Body","SentAt","Read","Deleted","ReminderSent"
+=== GahoiSpace
+"ID","AuthorEmail","AuthorName","Posted","Text","ImageUrl","LikedBy","LikeCount","CommentCount","Status","DeletedAt","DeletedBy","EditedAt"
+=== SpaceComments
+"ID","PostID","AuthorEmail","AuthorName","Posted","Text","Status","DeletedAt","DeletedBy"
+=== Ledger
+"ID","Date","Type","Description","Amount","Category","AddedBy","Timestamp"
+=== PendingSignups
+"Email","Name","Photo","FirstVisit","LastVisit","EmailsSent","Completed","GoogleSub"
+=== AuditLog
+"Timestamp","Action","Actor","Actor Email","Target","Detail","IP/Status","Result"
+=== LoginHistory
+"Email","LoginTime","Name","Photo","GahoiId","City","Page"
+=== HiddenSuggestions
+"UserEmail","HiddenMemberId","HiddenAt"
+=== PendingAknas
+"Akna Name","Member Email","Member Name","Submitted At","Status","Admin Notes"
+=== Notifications
+"Time","Icon","Text","Read"
+=== AknaList
+"Hindi","English","Variants","AddedBy","AddedAt","Active","Group"
+=== Activity
+"Email","LastSeen","Page","Name","Photo","GahoiId"
+=== BulkInvite
+"Email","Status","",""
+=== SignupNotifyEmails
+"Email","Name","Active","AddedBy","AddedAt"

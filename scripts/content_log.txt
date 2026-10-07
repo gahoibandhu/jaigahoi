@@ -1,0 +1,7 @@
+✅ business_listings: 13 inserted, 0 skipped (poster ना मिला)।
+✅ jobs: 0 inserted, 0 skipped (poster ना मिला)।
+✅ community_events: 0 inserted।
+✅ gallery: 146 inserted, 0 खाली-URL rows छोड़े गए।
+✅ dharmshala: 3 inserted, 0 skipped (नाम/शहर ग़ायब)।
+✅ magazines: 0 inserted।
+✅ offers: 1 inserted, 0 skipped (poster ना मिला)।

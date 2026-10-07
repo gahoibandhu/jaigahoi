@@ -1,0 +1,39 @@
+
+✅ 360 members padhe · 167 ke liye tag mile · 188 tags (report-only, SQL nahi) · 0 ka GahoiId nahi mila
+   businessman      58
+   engineer         40
+   it_professional  28
+   banker           14
+   teacher          12
+   govt_officer     10
+   advocate         6
+   ca               4
+   doctor           4
+   pharmacist       2
+   researcher       2
+   architect        2
+   farmer           2
+   ayush            1
+   dentist          1
+   social_worker    1
+   police_defence   1
+
+⚠️  1 member(s) ke text mein political/jan-pratinidhi jaisa shabd — AUTO-TAG NAHI kiya (sensitive). Admin se confirm karwa kar admin-professions.html se tag karo:
+   • GP00000235 Ghanshyamdas Gupta — "Ex Councillor"
+
+ℹ️  Match nahi hue (namune) — rules mein shabd jodne ho to batao:
+   · GP00000005 "Finance and accounts | HOD | Finance"
+   · GP00000007 "IT | Professional | IT"
+   · GP00000009 "Skill Assessment Entrepreneurship - Skill india | COO in Roy"
+   · GP00000011 "Radio design Telecommunication | Specialist"
+   · GP00000012 "Telecom Profeesional | DIRECTOR | SAARTEK"
+   · GP00000016 "Food Industry Consultant | Manager | Food Industry"
+   · GP00000017 "Job | Director | Education"
+   · GP00000018 "Job | Project coordinator"
+   · GP00000022 "Service after retirement | Consultant | Prasar Bharati"
+   · GP00000026 "Real Estate Professional | AGM- Sales | Real Estate"
+   · GP00000028 "Property"
+   · GP00000031 "Customer Relationship Management | AGM -CRM | Sikka Group"
+   · GP00000040 "IT Services"
+   · GP00000044 "Job | RBM | Pharma"
+   · GP00000045 "Job | Head | Sharda University"

@@ -1,0 +1,15 @@
+⏭  Skipped interest ID=1776431992517 — profile "M1251" अब मौजूद नहीं (deleted या id-map में नहीं)।
+⏭  Skipped interest ID=1776432875117 — profile "M1273" अब मौजूद नहीं (deleted या id-map में नहीं)।
+⏭  Skipped interest ID=1776432925772 — profile "M1301" अब मौजूद नहीं (deleted या id-map में नहीं)।
+⏭  Skipped interest ID=1776540176307 — profile "M1303" अब मौजूद नहीं (deleted या id-map में नहीं)।
+⏭  Skipped interest ID=1776588098881 — profile "M1237" अब मौजूद नहीं (deleted या id-map में नहीं)।
+⏭  Skipped interest ID=1776589813047 — profile "M1237" अब मौजूद नहीं (deleted या id-map में नहीं)।
+⏭  Skipped interest ID=1776661149274 — profile "M1282" अब मौजूद नहीं (deleted या id-map में नहीं)।
+⏭  Skipped interest ID=1777916703435 — profile "M1248" अब मौजूद नहीं (deleted या id-map में नहीं)।
+⏭  Skipped interest ID=1777916837128 — profile "M1301" अब मौजूद नहीं (deleted या id-map में नहीं)।
+⏭  Skipped interest ID=1777916862802 — profile "M1283" अब मौजूद नहीं (deleted या id-map में नहीं)।
+⏭  Skipped interest ID=1777916868767 — profile "M1281" अब मौजूद नहीं (deleted या id-map में नहीं)।
+⏭  Skipped interest ID=1778321542305 — profile "M1283" अब मौजूद नहीं (deleted या id-map में नहीं)।
+
+✅ 105 matrimony interests converted (7 mutual-match निकले)।
+   0 rows भेजने वाला ना मिलने से, 12 rows profile ना मिलने से, 2 duplicate pairs छोड़े गए।

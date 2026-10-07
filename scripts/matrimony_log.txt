@@ -1,0 +1,7 @@
+
+✅ 384 matrimony profiles converted।
+   0 खाली rows छोड़े गए, 0 rows creator ना मिलने से छोड़े गए (ऊपर देखें)।
+   277 नई census/pendingClaim persons rows बनाई गईं (--generate-census)।
+
+📝 legacyId→uuid mapping (384 entries) लिखी गई: idmap.json
+   इसे migrate-matrimony-interests.js को दें।
