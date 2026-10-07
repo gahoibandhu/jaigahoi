@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7a1f3d">
+  <title>Admin — Login & Signup Settings</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    .aa-wrap{max-width:760px;margin:18px auto;padding:0 16px 40px}
+    .aa-box{background:var(--gp-card);border:1px solid var(--border-soft);border-radius:var(--gp-radius-lg);box-shadow:var(--gp-shadow);padding:16px 18px;margin-bottom:14px}
+    .aa-box h3{margin:0 0 8px;color:var(--primary);font-size:1.25rem}
+    .aa-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-soft)}
+    .aa-row:last-child{border-bottom:none}
+    .aa-row .n{font-weight:700}.aa-row .d{font-size:.8rem;color:var(--gp-text-muted)}
+    .aa-sw{position:relative;width:46px;height:26px;flex-shrink:0}
+    .aa-sw input{opacity:0;width:0;height:0}
+    .aa-sw span{position:absolute;inset:0;background:#ccc;border-radius:26px;cursor:pointer;transition:.2s}
+    .aa-sw span:before{content:"";position:absolute;height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+    .aa-sw input:checked+span{background:var(--success)}
+    .aa-sw input:checked+span:before{transform:translateX(20px)}
+    .aa-pill{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.74rem;font-weight:700}
+    .p-on{background:var(--success-soft);color:var(--success)}.p-off{background:var(--error-soft);color:var(--error)}.p-na{background:var(--light-2);color:var(--muted)}
+    .aa-warn{background:var(--warning-soft);border:1px solid var(--accent);border-radius:10px;padding:8px 12px;font-size:.82rem;margin-top:8px;display:none}
+    pre.aa-code{background:#1e1612;color:#f5ecd4;padding:12px;border-radius:10px;font-size:.78rem;overflow:auto;white-space:pre-wrap}
+    ol.aa-steps{margin:6px 0 0;padding-left:20px;font-size:.86rem;line-height:1.7}
+  </style>
+</head>
+<body>
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>🔐 Login & Signup Settings</h1><div class="gp-header-sub">कौन-से तरीक़े चालू रहें — सिर्फ़ Admin</div></div>
+  </div>
+  <div class="aa-wrap">
+    <a href="home.html" style="color:var(--primary);font-weight:600;text-decoration:none;font-size:.9rem">← Home</a>
+    <div id="aaAlert" class="gp-alert"></div>
+
+    <div class="aa-box">
+      <h3>Supabase में अभी असल स्थिति</h3>
+      <div class="aa-row"><div><div class="n">✉️ Email</div></div><span id="stEmail" class="aa-pill p-na">...</span></div>
+      <div class="aa-row"><div><div class="n">🔵 Google</div></div><span id="stGoogle" class="aa-pill p-na">...</span></div>
+      <div class="aa-row"><div><div class="n">📱 Phone (SMS OTP)</div><div class="d">SMS gateway (Twilio आदि) भी जुड़ा होना चाहिए</div></div><span id="stPhone" class="aa-pill p-na">...</span></div>
+    </div>
+
+    <div class="aa-box">
+      <h3>कौन-से तरीक़े सदस्यों को दिखें</h3>
+      <div class="aa-row"><div><div class="n">🔵 Google से Login / Signup</div></div><label class="aa-sw"><input type="checkbox" id="tGoogle"><span></span></label></div>
+      <div class="aa-row"><div><div class="n">✉️ Email Code (OTP) — Login और Signup</div><div class="d">Email पर 6-अंकों का code, password की ज़रूरत नहीं</div></div><label class="aa-sw"><input type="checkbox" id="tEmailOtp"><span></span></label></div>
+      <div class="aa-row"><div><div class="n">🔑 Email + Password से Login</div></div><label class="aa-sw"><input type="checkbox" id="tPwLogin"><span></span></label></div>
+      <div class="aa-row"><div><div class="n">📝 Email + Password से नया Signup</div></div><label class="aa-sw"><input type="checkbox" id="tPwSignup"><span></span></label></div>
+      <div class="aa-row"><div><div class="n">📱 Mobile OTP — Login और Signup</div><div class="d">अभी configure न हो तो OFF रखें। ON करने पर भी option तभी दिखेगा जब ऊपर Phone "चालू" हो।</div></div><label class="aa-sw"><input type="checkbox" id="tMobileOtp"><span></span></label></div>
+      <div id="mobileWarn" class="aa-warn">⚠️ Supabase में Phone provider चालू नहीं है — toggle ON करने पर भी login/register पेज पर Mobile OTP तब तक नहीं दिखेगा। नीचे Setup देखें।</div>
+      <button class="gp-btn" id="saveBtn" style="margin-top:14px">💾 सहेजें</button>
+    </div>
+
+    <div class="aa-box">
+      <h3>🛠 Setup (Supabase Dashboard → Authentication)</h3>
+      <ol class="aa-steps">
+        <li><b>Custom SMTP (ज़रूरी):</b> Settings → SMTP → Resend: host <code>smtp.resend.com</code>, port <code>465</code>, user <code>resend</code>, password = Resend API key, sender = <code>noreply@jaigahoi.in</code>। (Supabase का built-in email बहुत सीमित है — घंटे में कुछ ही mail, OTP signup वहीं अटकेगा।)</li>
+        <li><b>Email Templates:</b> "Confirm signup" और "Magic Link" दोनों में <code>{{ .Token }}</code> जोड़ें, वरना mail में code नहीं आएगा — <code>supabase/auth-email-templates.md</code> देखें।</li>
+        <li><b>Password length:</b> Providers → Email → Minimum password length = 8।</li>
+        <li><b>Redirect URLs:</b> URL Configuration → Site URL <code>https://jaigahoi.in</code>; Redirect URLs में <code>/auth-callback.html</code> और <code>/forgot-password.html</code> जोड़ें।</li>
+        <li><b>Google:</b> Providers → Google ON (Client ID/Secret, redirect: Supabase callback URL)।</li>
+        <li><b>Mobile OTP (बाद में):</b> Providers → Phone ON + SMS provider (Twilio / MessageBird / Vonage / Textlocal) का account जोड़ें; भारत में <b>DLT registration</b> ज़रूरी है। फिर यहाँ toggle ON करें।</li>
+        <li><b>Rate limits:</b> Authentication → Rate Limits में OTP/email की सीमा देखें।</li>
+      </ol>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const MAP = { tGoogle: "authGoogleEnabled", tEmailOtp: "authEmailOtpEnabled", tPwLogin: "authPasswordLoginEnabled", tPwSignup: "authPasswordSignupEnabled", tMobileOtp: "authMobileOtpEnabled" };
+    let phoneOn = false;
+
+    function pill(id, on) { const el = $(id); el.className = "aa-pill " + (on === null ? "p-na" : on ? "p-on" : "p-off"); el.textContent = on === null ? "पता नहीं चला" : on ? "✅ चालू" : "❌ बंद"; }
+    function refreshWarn() { $("mobileWarn").style.display = ($("tMobileOtp").checked && !phoneOn) ? "block" : "none"; }
+    $("tMobileOtp").addEventListener("change", refreshWarn);
+
+    async function load() {
+      const cfg = await gpAuthConfig({ fresh: true });
+      const st = cfg.providerStatus;
+      pill("stEmail", st ? st.email : null); pill("stGoogle", st ? st.google : null); pill("stPhone", st ? st.phone : null);
+      phoneOn = cfg.phoneProviderOn;
+      $("tGoogle").checked = cfg.googleEnabled; $("tEmailOtp").checked = cfg.emailOtpEnabled;
+      $("tPwLogin").checked = cfg.passwordLoginEnabled; $("tPwSignup").checked = cfg.passwordSignupEnabled;
+      $("tMobileOtp").checked = cfg.mobileOtpAdminOn; refreshWarn();
+    }
+
+    $("saveBtn").addEventListener("click", async () => {
+      gpHideAlert("aaAlert");
+      // Lock-out से बचाव: login का कम से कम एक तरीक़ा चालू रहे
+      if (!$("tGoogle").checked && !$("tEmailOtp").checked && !$("tPwLogin").checked && !($("tMobileOtp").checked && phoneOn)) {
+        gpShowAlert("aaAlert", "कम से कम एक login तरीक़ा चालू रखें — वरना कोई login नहीं कर पाएगा।", "error"); return;
+      }
+      const patch = {}; Object.entries(MAP).forEach(([id, key]) => { patch[key] = $(id).checked; });
+      const btn = $("saveBtn"); btn.disabled = true;
+      const r = await gpCallFunction("admin-update-settings", { docs: { publicConfig: patch } });
+      btn.disabled = false;
+      if (!r || !r.success) { gpShowAlert("aaAlert", (r && r.message) || "Save नहीं हो सका।", "error"); return; }
+      gpShowAlert("aaAlert", "✅ सहेज लिया — login/register पेज पर अगली बार से लागू।", "success");
+    });
+
+    (async () => {
+      const session = await gpRequireLogin("login.html"); if (!session) return;
+      const me = await gpGetMyProfile();
+      if (!me || me.role !== "Admin") { window.location.href = "home.html"; return; }
+      await load();
+    })();
+  </script>
+</body>
+</html>

@@ -3,108 +3,214 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7a1f3d">
   <title>Registration — गहोई पोर्टल</title>
   <link rel="stylesheet" href="common.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
-
   <div class="gp-header">
     <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
-    <div>
-      <h1>गहोई पोर्टल</h1>
-      <p class="gp-header-sub">All India Gahoi Vaishya Samaj Community Portal</p>
-    </div>
+    <div><h1>गहोई पोर्टल</h1><p class="gp-header-sub">All India Gahoi Vaishya Samaj Community Portal</p></div>
   </div>
 
   <div class="gp-container">
     <div class="gp-card" id="signupCard">
       <h2>नया Account बनाएं</h2>
-      <p class="gp-subtitle">पहला कदम — Email/Password या Google से शुरू करें</p>
-
+      <p class="gp-subtitle">पहला कदम — अपना तरीक़ा चुनें, फिर profile भरें</p>
       <div id="regAlert" class="gp-alert"></div>
 
-      <button type="button" class="gp-btn gp-btn-google" id="googleSignupBtn">
-        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92a8.78 8.78 0 002.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86a5.19 5.19 0 01-4.87-3.6H1.1v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M4.13 10.82a5.4 5.4 0 010-3.64V4.85H1.1a9 9 0 000 8.3l3.03-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58A8.6 8.6 0 009 0 9 9 0 001.1 4.85l3.03 2.33A5.19 5.19 0 019 3.58z"/></svg>
-        Google से जारी रखें
-      </button>
-      <p class="gp-hint" style="text-align:center;margin-top:6px">Google से email अपने-आप verified मानी जाती है — approval जल्दी मिलने का मौका</p>
+      <button type="button" class="gp-btn gp-btn-google" id="googleSignupBtn" style="display:none"><svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92a8.78 8.78 0 002.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86a5.19 5.19 0 01-4.87-3.6H1.1v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M4.13 10.82a5.4 5.4 0 010-3.64V4.85H1.1a9 9 0 000 8.3l3.03-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58A8.6 8.6 0 009 0 9 9 0 001.1 4.85l3.03 2.33A5.19 5.19 0 019 3.58z"/></svg> Google से जारी रखें</button>
+      <p class="gp-hint" id="googleHint" style="text-align:center;margin-top:6px;display:none">Google से email अपने-आप verified मानी जाती है — approval जल्दी मिलने का मौका</p>
+      <div class="gp-divider" id="googleDivider" style="display:none">या</div>
 
-      <div class="gp-divider">या Email से</div>
+      <div class="au-tabs" id="methodTabs"></div>
 
-      <form id="signupForm">
-        <div class="gp-field">
-          <label for="email">Email</label>
-          <input type="email" id="email" required autocomplete="email">
-        </div>
-        <div class="gp-field">
-          <label for="password">Password</label>
-          <input type="password" id="password" required minlength="6" autocomplete="new-password">
-          <div class="gp-hint">कम से कम 6 characters</div>
-        </div>
-        <button type="submit" class="gp-btn" id="signupSubmitBtn">Account बनाएं</button>
+      <!-- Email Code (OTP) -->
+      <div id="emailOtp" class="au-step">
+        <form id="eoSend">
+          <div class="gp-field"><label for="eoEmail">Email</label><input type="email" id="eoEmail" required autocomplete="email"><div class="au-note">इस email पर 6-अंकों का code आएगा — उसी से email verify हो जाएगी।</div></div>
+          <button type="submit" class="gp-btn" id="eoSendBtn">Code भेजें</button>
+        </form>
+        <form id="eoVerify" style="display:none">
+          <div class="gp-field"><label for="eoCode">Email पर आया Code</label><input type="text" id="eoCode" class="au-code" inputmode="numeric" maxlength="6" required autocomplete="one-time-code"></div>
+          <button type="submit" class="gp-btn" id="eoVerifyBtn">Verify करें</button>
+          <p class="gp-footer-link"><button type="button" class="au-link" id="eoResend">दोबारा भेजें</button> · <button type="button" class="au-link" id="eoBack">Email बदलें</button></p>
+        </form>
+      </div>
+
+      <!-- Mobile OTP -->
+      <div id="mobileOtp" class="au-step">
+        <form id="moSend">
+          <div class="gp-field"><label for="moMobile">मोबाइल नंबर</label><input type="tel" id="moMobile" pattern="[6-9][0-9]{9}" maxlength="10" required autocomplete="tel-national"><div class="au-note">SMS से code आएगा। यही नंबर आपकी profile में दर्ज होगा।</div></div>
+          <button type="submit" class="gp-btn" id="moSendBtn">SMS Code भेजें</button>
+        </form>
+        <form id="moVerify" style="display:none">
+          <div class="gp-field"><label for="moCode">SMS से आया Code</label><input type="text" id="moCode" class="au-code" inputmode="numeric" maxlength="6" required autocomplete="one-time-code"></div>
+          <button type="submit" class="gp-btn" id="moVerifyBtn">Verify करें</button>
+          <p class="gp-footer-link"><button type="button" class="au-link" id="moResend">दोबारा भेजें</button> · <button type="button" class="au-link" id="moBack">नंबर बदलें</button></p>
+        </form>
+      </div>
+
+      <!-- Email + Password (confirmation link) -->
+      <form id="pwForm" class="au-step">
+        <div class="gp-field"><label for="pwEmail">Email</label><input type="email" id="pwEmail" required autocomplete="email"></div>
+        <div class="gp-field au-pw"><label for="pwPassword">Password</label><input type="password" id="pwPassword" required minlength="8" autocomplete="new-password"><button type="button" class="au-eye" id="pwEye" aria-label="Password दिखाएँ">👁</button><div class="gp-hint">कम से कम 8 अक्षर — अक्षर और अंक दोनों</div></div>
+        <div class="gp-field"><label for="pwConfirm">Password दोबारा</label><input type="password" id="pwConfirm" required minlength="8" autocomplete="new-password"></div>
+        <button type="submit" class="gp-btn" id="pwBtn">Account बनाएं</button>
       </form>
 
       <p class="gp-footer-link">पहले से account है? <a href="login.html">Login करें</a></p>
     </div>
 
+    <!-- Email verify होने के बाद: वैकल्पिक Password -->
+    <div class="gp-card" id="setPwCard" style="display:none">
+      <h2>✅ Email verify हो गई</h2>
+      <p class="gp-subtitle">चाहें तो अभी एक Password भी बना लें (बाद में Email Code से भी login कर सकते हैं)</p>
+      <div id="spAlert" class="gp-alert"></div>
+      <form id="spForm">
+        <div class="gp-field au-pw"><label for="spPassword">नया Password</label><input type="password" id="spPassword" autocomplete="new-password"><button type="button" class="au-eye" id="spEye" aria-label="Password दिखाएँ">👁</button><div class="gp-hint">कम से कम 8 अक्षर — अक्षर और अंक दोनों</div></div>
+        <div class="gp-field"><label for="spConfirm">Password दोबारा</label><input type="password" id="spConfirm" autocomplete="new-password"></div>
+        <button type="submit" class="gp-btn" id="spBtn">Password सेट करके आगे बढ़ें</button>
+        <button type="button" class="gp-btn gp-btn-secondary" id="spSkip" style="margin-top:8px">अभी छोड़ें →</button>
+      </form>
+    </div>
+
     <div class="gp-card" id="checkEmailCard" style="display:none">
       <h2>📧 Email Check करें</h2>
       <p class="gp-subtitle">हमने आपको एक confirmation link भेजी है</p>
-      <div class="gp-alert gp-alert-success" style="display:block">
-        <span id="sentToEmail"></span> पर भेजी गई link पर click करें, फिर वापस आकर अपनी profile पूरी करें।
-      </div>
+      <div class="gp-alert gp-alert-success" style="display:block"><span id="sentToEmail"></span> पर भेजी गई link पर click करें, फिर वापस आकर अपनी profile पूरी करें।</div>
       <p class="gp-hint">Link ना दिखे तो Spam/Junk folder भी देखें।</p>
     </div>
   </div>
 
   <script src="config.js"></script>
   <script src="common.js"></script>
+  <script src="auth.js"></script>
   <script>
-    document.getElementById("signupForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
+    const $ = (id) => document.getElementById(id);
+    const COOLDOWN = 60;
+    let cfg = null, emailForOtp = "", phoneForOtp = "";
+
+    function show(step) {
+      ["emailOtp", "mobileOtp", "pwForm"].forEach((s) => $(s).classList.toggle("on", s === step));
+      document.querySelectorAll("#methodTabs button").forEach((b) => b.classList.toggle("active", b.dataset.step === step));
       gpHideAlert("regAlert");
-      const btn = document.getElementById("signupSubmitBtn");
-      btn.disabled = true;
-      btn.textContent = "कृपया प्रतीक्षा करें...";
+    }
+    function buildTabs() {
+      const tabs = [];
+      if (cfg.emailOtpEnabled) tabs.push(["emailOtp", "✉️ Email Code"]);
+      if (cfg.mobileOtpEnabled) tabs.push(["mobileOtp", "📱 Mobile OTP"]);
+      if (cfg.passwordSignupEnabled) tabs.push(["pwForm", "🔑 Password"]);
+      if (!tabs.length && !cfg.googleEnabled) { gpShowAlert("regAlert", "अभी नए registration बंद हैं — Admin से संपर्क करें।", "error"); return; }
+      if (!tabs.length) return;
+      $("methodTabs").innerHTML = tabs.map((t) => `<button type="button" data-step="${t[0]}">${t[1]}</button>`).join("");
+      $("methodTabs").style.display = tabs.length > 1 ? "flex" : "none";
+      $("methodTabs").addEventListener("click", (e) => { const b = e.target.closest("button[data-step]"); if (b) show(b.dataset.step); });
+      show(tabs[0][0]);
+    }
 
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
+    // OTP verify के बाद: पहले से registered है तो सीधे आगे, नहीं तो (email होने पर) वैकल्पिक password फिर profile
+    async function afterVerified(hasEmail) {
+      const profile = await gpGetMyProfile();
+      if (profile) { await gpRouteAfterLogin(); return; }
+      if (hasEmail) { $("signupCard").style.display = "none"; $("setPwCard").style.display = "block"; return; }
+      window.location.href = "complete-profile.html";
+    }
 
-      const { data, error } = await gpSupabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: window.location.origin + "/auth-callback.html" },
-      });
-
-      if (error) {
-        gpShowAlert("regAlert", error.message.includes("already registered")
-          ? "ये email पहले से registered है — Login करें।"
-          : "Registration शुरू नहीं हो सकी — फिर कोशिश करें।", "error");
-        btn.disabled = false;
-        btn.textContent = "Account बनाएं";
-        return;
+    // ── Email Code ──
+    async function sendEmailCode() {
+      const { error } = await gpSupabase.auth.signInWithOtp({ email: emailForOtp, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin + "/auth-callback.html" } });
+      if (error) { gpShowAlert("regAlert", gpFriendlyAuthError(error), "error"); return false; }
+      return true;
+    }
+    $("eoSend").addEventListener("submit", async (e) => {
+      e.preventDefault(); gpHideAlert("regAlert"); emailForOtp = $("eoEmail").value.trim().toLowerCase();
+      const btn = $("eoSendBtn"); btn.disabled = true;
+      if (await sendEmailCode()) {
+        $("eoSend").style.display = "none"; $("eoVerify").style.display = "block";
+        gpShowAlert("regAlert", emailForOtp + " पर 6-अंकों का code भेज दिया गया है।", "success");
+        gpStartCooldown($("eoResend"), COOLDOWN, "दोबारा भेजें");
       }
-
-      // कुछ Supabase configs में email-confirmation off होती है — तब session तुरंत मिल जाता है
-      if (data.session) {
-        window.location.href = "complete-profile.html";
-        return;
-      }
-
-      document.getElementById("sentToEmail").textContent = email;
-      document.getElementById("signupCard").style.display = "none";
-      document.getElementById("checkEmailCard").style.display = "block";
+      btn.disabled = false;
+    });
+    $("eoResend").addEventListener("click", async () => { if (await sendEmailCode()) { gpShowAlert("regAlert", "Code दोबारा भेज दिया।", "success"); gpStartCooldown($("eoResend"), COOLDOWN, "दोबारा भेजें"); } });
+    $("eoBack").addEventListener("click", () => { $("eoVerify").style.display = "none"; $("eoSend").style.display = "block"; gpHideAlert("regAlert"); });
+    $("eoVerify").addEventListener("submit", async (e) => {
+      e.preventDefault(); gpHideAlert("regAlert");
+      const btn = $("eoVerifyBtn"); btn.disabled = true;
+      const token = $("eoCode").value.trim();
+      let res = await gpSupabase.auth.verifyOtp({ email: emailForOtp, token, type: "email" });
+      if (res.error) res = await gpSupabase.auth.verifyOtp({ email: emailForOtp, token, type: "signup" });   // नए user के लिए कुछ configs में 'signup' type
+      if (res.error) { gpShowAlert("regAlert", gpFriendlyAuthError(res.error), "error"); btn.disabled = false; return; }
+      await afterVerified(true);
     });
 
-    document.getElementById("googleSignupBtn").addEventListener("click", async () => {
+    // ── Optional password (Email-OTP के बाद) ──
+    $("spForm").addEventListener("submit", async (e) => {
+      e.preventDefault(); gpHideAlert("spAlert");
+      const pw = $("spPassword").value, problem = gpPasswordProblem(pw);
+      if (problem) { gpShowAlert("spAlert", problem, "error"); return; }
+      if (pw !== $("spConfirm").value) { gpShowAlert("spAlert", "दोनों Password एक जैसे नहीं हैं।", "error"); return; }
+      const btn = $("spBtn"); btn.disabled = true;
+      const { error } = await gpSupabase.auth.updateUser({ password: pw });
+      if (error) { gpShowAlert("spAlert", "Password set नहीं हो सका — आगे बढ़कर बाद में भी set कर सकते हैं।", "error"); btn.disabled = false; return; }
+      window.location.href = "complete-profile.html";
+    });
+    $("spSkip").addEventListener("click", () => { window.location.href = "complete-profile.html"; });
+
+    // ── Mobile OTP ──
+    async function sendSmsCode() {
+      const { error } = await gpSupabase.auth.signInWithOtp({ phone: phoneForOtp, options: { shouldCreateUser: true } });
+      if (error) { gpShowAlert("regAlert", gpFriendlyAuthError(error), "error"); return false; }
+      return true;
+    }
+    $("moSend").addEventListener("submit", async (e) => {
+      e.preventDefault(); gpHideAlert("regAlert"); phoneForOtp = "+91" + $("moMobile").value.trim();
+      const btn = $("moSendBtn"); btn.disabled = true;
+      if (await sendSmsCode()) {
+        $("moSend").style.display = "none"; $("moVerify").style.display = "block";
+        gpShowAlert("regAlert", "SMS code भेज दिया गया है।", "success");
+        gpStartCooldown($("moResend"), COOLDOWN, "दोबारा भेजें");
+      }
+      btn.disabled = false;
+    });
+    $("moResend").addEventListener("click", async () => { if (await sendSmsCode()) { gpShowAlert("regAlert", "Code दोबारा भेज दिया।", "success"); gpStartCooldown($("moResend"), COOLDOWN, "दोबारा भेजें"); } });
+    $("moBack").addEventListener("click", () => { $("moVerify").style.display = "none"; $("moSend").style.display = "block"; gpHideAlert("regAlert"); });
+    $("moVerify").addEventListener("submit", async (e) => {
+      e.preventDefault(); gpHideAlert("regAlert");
+      const btn = $("moVerifyBtn"); btn.disabled = true;
+      const { error } = await gpSupabase.auth.verifyOtp({ phone: phoneForOtp, token: $("moCode").value.trim(), type: "sms" });
+      if (error) { gpShowAlert("regAlert", gpFriendlyAuthError(error), "error"); btn.disabled = false; return; }
+      await afterVerified(false);
+    });
+
+    // ── Email + Password (confirmation link) ──
+    $("pwForm").addEventListener("submit", async (e) => {
+      e.preventDefault(); gpHideAlert("regAlert");
+      const email = $("pwEmail").value.trim(), password = $("pwPassword").value;
+      const problem = gpPasswordProblem(password);
+      if (problem) { gpShowAlert("regAlert", problem, "error"); return; }
+      if (password !== $("pwConfirm").value) { gpShowAlert("regAlert", "दोनों Password एक जैसे नहीं हैं।", "error"); return; }
+      const btn = $("pwBtn"); btn.disabled = true; btn.textContent = "कृपया प्रतीक्षा करें...";
+      const { data, error } = await gpSupabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + "/auth-callback.html" } });
+      if (error) { gpShowAlert("regAlert", gpFriendlyAuthError(error), "error"); btn.disabled = false; btn.textContent = "Account बनाएं"; return; }
+      if (data.session) { window.location.href = "complete-profile.html"; return; }   // कुछ configs में email-confirmation off होती है
+      $("sentToEmail").textContent = email; $("signupCard").style.display = "none"; $("checkEmailCard").style.display = "block";
+    });
+
+    $("googleSignupBtn").addEventListener("click", async () => {
       gpHideAlert("regAlert");
-      const { error } = await gpSupabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: window.location.origin + "/auth-callback.html" },
-      });
+      const { error } = await gpSupabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + "/auth-callback.html" } });
       if (error) gpShowAlert("regAlert", "Google से शुरू नहीं हो सका — फिर कोशिश करें।", "error");
     });
+
+    gpWirePasswordToggle("pwPassword", "pwEye"); gpWirePasswordToggle("spPassword", "spEye");
+    (async () => {
+      cfg = await gpAuthConfig();
+      if (cfg.googleEnabled) { $("googleSignupBtn").style.display = "flex"; $("googleHint").style.display = "block"; $("googleDivider").style.display = "flex"; }
+      buildTabs();
+    })();
   </script>
 </body>
 </html>

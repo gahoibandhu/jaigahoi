@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7a1f3d">
+  <title>Email / User ID खोजें — गहोई पोर्टल</title>
+  <link rel="stylesheet" href="common.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+  <div class="gp-header">
+    <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
+    <div><h1>गहोई पोर्टल</h1><p class="gp-header-sub">All India Gahoi Vaishya Samaj Community Portal</p></div>
+  </div>
+
+  <div class="gp-container">
+    <div class="gp-card" id="askCard">
+      <h2>🔍 Email / User ID भूल गए?</h2>
+      <p class="gp-subtitle">Registration वाली ये तीन जानकारी डालें — हम आपका login email पहचानकर उसी पते पर भेज देंगे</p>
+      <div id="fuAlert" class="gp-alert"></div>
+      <form id="fuForm">
+        <div class="gp-field"><label for="mobile">मोबाइल नंबर *</label><input type="tel" id="mobile" pattern="[6-9][0-9]{9}" maxlength="10" required autocomplete="tel-national"></div>
+        <div class="gp-field"><label for="native">मूल निवास *</label><input type="text" id="native" required></div>
+        <div class="gp-field"><label for="akna">अकना (कुलनाम) *</label><input type="text" id="akna" list="aknaOptions" required autocomplete="off"><datalist id="aknaOptions"></datalist></div>
+        <button type="submit" class="gp-btn" id="fuBtn">खोजें</button>
+      </form>
+      <p class="gp-footer-link"><a href="login.html">← Login पर वापस जाएं</a></p>
+    </div>
+
+    <div class="gp-card" id="foundCard" style="display:none">
+      <h2>✅ Account मिल गया</h2>
+      <div class="gp-alert gp-alert-success" style="display:block">आपका Login Email: <b id="maskedEmail" style="font-size:1.1rem"></b></div>
+      <p id="foundMsg" class="gp-hint"></p>
+      <div id="methodHint" class="gp-hint"></div>
+      <p style="text-align:center;margin-top:14px"><a class="gp-btn gp-btn-sm" href="login.html">Login करें</a> &nbsp; <a class="gp-btn gp-btn-secondary gp-btn-sm" href="forgot-password.html">Password भूल गए?</a></p>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="common.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    (async () => {
+      const { data } = await gpSupabase.from("akna_list").select("hindi").eq("active", true).order("hindi");
+      $("aknaOptions").innerHTML = (data || []).map((a) => `<option value="${String(a.hindi).replace(/"/g, "&quot;")}">`).join("");
+    })();
+
+    $("fuForm").addEventListener("submit", async (e) => {
+      e.preventDefault(); gpHideAlert("fuAlert");
+      const btn = $("fuBtn"); btn.disabled = true; btn.textContent = "खोज रहे हैं...";
+      const r = await gpCallFunction("find-user-id", { mobile: $("mobile").value.trim(), native: $("native").value.trim(), akna: $("akna").value.trim() });
+      btn.disabled = false; btn.textContent = "खोजें";
+      if (!r || !r.success) { gpShowAlert("fuAlert", (r && r.message) || "खोज नहीं हो सकी — बाद में फिर कोशिश करें।", "error"); return; }
+      $("maskedEmail").textContent = r.maskedEmail || "(कोई email नहीं)";
+      $("foundMsg").textContent = r.message || "";
+      const m = r.methods || [];
+      $("methodHint").innerHTML = (m.includes("google") ? "• आप <b>Google</b> से भी login कर सकते हैं।<br>" : "") + (m.includes("phone") ? "• आपके नंबर पर <b>Mobile OTP</b> से भी login संभव है।" : "");
+      $("askCard").style.display = "none"; $("foundCard").style.display = "block";
+    });
+  </script>
+</body>
+</html>
