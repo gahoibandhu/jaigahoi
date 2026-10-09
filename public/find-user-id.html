@@ -22,7 +22,7 @@
       <form id="fuForm">
         <div class="gp-field"><label for="mobile">मोबाइल नंबर *</label><input type="tel" id="mobile" pattern="[6-9][0-9]{9}" maxlength="10" required autocomplete="tel-national"></div>
         <div class="gp-field"><label for="native">मूल निवास *</label><input type="text" id="native" required></div>
-        <div class="gp-field"><label for="akna">अकना (कुलनाम) *</label><input type="text" id="akna" list="aknaOptions" required autocomplete="off"><datalist id="aknaOptions"></datalist></div>
+        <div class="gp-field"><label for="akna">अकना (कुलनाम) *</label><input type="text" id="akna" required autocomplete="off" placeholder="Hindi या English में लिखें"></div>
         <button type="submit" class="gp-btn" id="fuBtn">खोजें</button>
       </form>
       <p class="gp-footer-link"><a href="login.html">← Login पर वापस जाएं</a></p>
@@ -40,12 +40,16 @@
   <script src="config.js"></script>
   <script src="common.js"></script>
   <script src="auth.js"></script>
+  <script src="akna-picker.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
-    (async () => {
-      const { data } = await gpSupabase.from("akna_list").select("hindi").eq("active", true).order("hindi");
-      $("aknaOptions").innerHTML = (data || []).map((a) => `<option value="${String(a.hindi).replace(/"/g, "&quot;")}">`).join("");
-    })();
+    // akna-picker.js load न हो पाए तो भी form चले: साधारण text field की तरह (server अकना canonicalize कर ही देता है)
+    function makeAknaPicker(el) {
+      const input = typeof el === "string" ? document.getElementById(el) : el;
+      try { if (typeof gpAknaPicker === "function") { const p = gpAknaPicker({ input }); if (p) return p; } } catch (e) {}
+      return { value: () => input.value.trim(), recognized: () => false, setValue(v) { input.value = v || ""; } };
+    }
+    makeAknaPicker("akna");
 
     $("fuForm").addEventListener("submit", async (e) => {
       e.preventDefault(); gpHideAlert("fuAlert");

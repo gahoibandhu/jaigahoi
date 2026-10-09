@@ -36,7 +36,12 @@
         <div class="gp-field">
           <label for="mobile">मोबाइल नंबर *</label>
           <input type="tel" id="mobile" pattern="[6-9][0-9]{9}" maxlength="10" required>
-          <div class="gp-hint">10 अंक, 6-9 से शुरू — यही आपका शुरुआती Password भी होगा</div>
+          <div class="gp-hint" id="mobileHint">10 अंक, 6-9 से शुरू — Login और सूचनाओं में काम आएगा</div>
+        </div>
+        <div class="gp-field" id="emailWrap" style="display:none">
+          <label for="altEmail">Email (वैकल्पिक)</label>
+          <input type="email" id="altEmail" autocomplete="email">
+          <div class="gp-hint">आपका account मोबाइल से बना है — email देने पर सूचनाएँ और recovery आसान होगी</div>
         </div>
         <div class="gp-field">
           <label for="city">वर्तमान शहर *</label>
@@ -48,9 +53,8 @@
         </div>
         <div class="gp-field">
           <label for="akna">आपकी अकना (कुलनाम) *</label>
-          <input type="text" id="akna" list="aknaOptions" required autocomplete="off">
-          <datalist id="aknaOptions"></datalist>
-          <div class="gp-hint">सूची में ना मिले तो भी टाइप करें — Admin review करेंगे</div>
+          <input type="text" id="akna" required autocomplete="off" placeholder="Hindi या English में लिखें — जैसे: रेजा / reja">
+          <div class="gp-hint">नाम लिखना शुरू करें, मिलते-जुलते अकना नीचे दिखेंगे — सही वाला चुनें। ना मिले तो जैसा है वैसा लिखें, Admin जाँच लेगा।</div>
         </div>
         <div class="gp-field">
           <label>फ़ोटो (optional — बाद में भी लगा सकते हैं)</label>
@@ -64,6 +68,7 @@
 
   <script src="config.js"></script>
   <script src="common.js"></script>
+  <script src="akna-picker.js"></script>
   <script>
     // ── Login-guard: बिना session यहाँ नहीं आ सकते ──────────────────────────────
     let currentSession = null;
@@ -83,6 +88,16 @@
       currentSession = await gpRequireLogin("register.html");
       if (!currentSession) return;
 
+      // Mobile-OTP से बने account: मोबाइल पहले से verified है — बदलने नहीं देंगे; email वैकल्पिक पूछो
+      const authUser = currentSession.user || {};
+      if (authUser.phone) {
+        const m = String(authUser.phone).replace(/\D/g, "").slice(-10);
+        const mobileEl = document.getElementById("mobile");
+        mobileEl.value = m; mobileEl.readOnly = true;
+        document.getElementById("mobileHint").textContent = "✅ यह नंबर OTP से verify हो चुका है";
+      }
+      if (!authUser.email) document.getElementById("emailWrap").style.display = "block";
+
       // अगर पहले से persons-row है तो यहाँ आने की ज़रूरत नहीं
       const existing = await gpGetMyProfile();
       if (existing) {
@@ -90,16 +105,17 @@
         return;
       }
 
-      // Akna autocomplete list भरना (akna_list की RLS सबको read करने देती है)
-      const { data: aknas } = await gpSupabase.from("akna_list").select("hindi").eq("active", true).order("hindi");
-      const datalist = document.getElementById("aknaOptions");
-      (aknas || []).forEach((a) => {
-        const opt = document.createElement("option");
-        opt.value = a.hindi;
-        datalist.appendChild(opt);
-      });
+      // Akna type-ahead: Hindi/English दोनों से match, पूरी list scroll नहीं करनी पड़ती (akna_list की RLS सबको read देती है)
+      aknaPicker = makeAknaPicker("akna");
     })();
 
+    let aknaPicker = null;
+    // akna-picker.js load न हो पाए तो भी form चले: साधारण text field की तरह (server अकना canonicalize कर ही देता है)
+    function makeAknaPicker(el) {
+      const input = typeof el === "string" ? document.getElementById(el) : el;
+      try { if (typeof gpAknaPicker === "function") { const p = gpAknaPicker({ input }); if (p) return p; } } catch (e) {}
+      return { value: () => input.value.trim(), recognized: () => false, setValue(v) { input.value = v || ""; } };
+    }
     document.getElementById("profileForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       gpHideAlert("profileAlert");
@@ -116,6 +132,7 @@
         akna: document.getElementById("akna").value.trim(),
         referrerGahoiId: localStorage.getItem("gp_referrer_gahoi_id") || "",
         photo: uploadedPhotoUrl || "",
+        email: (document.getElementById("altEmail").value || "").trim(),
       };
 
       const result = await gpCallFunction("register", payload);

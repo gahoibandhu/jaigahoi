@@ -54,7 +54,7 @@
           <div class="gp-field"><label>विवरण *</label><input type="text" id="details" required></div>
           <div class="gp-field"><label>लागू शहर</label><input type="text" id="cities" placeholder="जैसे: Jhansi, Lalitpur"></div>
           <div class="gp-field"><label>संपर्क मोबाइल</label><input type="tel" id="mobile" pattern="[6-9][0-9]{9}" maxlength="10"></div>
-          <div class="gp-field"><label>Image URL</label><input type="text" id="image"></div>
+          <div class="gp-field"><label>Offer की फोटो</label><input type="file" id="imageFile" accept="image/*"><img id="imagePrev" alt="" style="display:none;max-width:160px;max-height:120px;margin-top:8px;border-radius:8px;border:1px solid var(--gp-border)"><div class="gp-hint" id="imageStatus">फोटो चुनें — अपने-आप upload होगी। (या नीचे सीधा URL डालें)</div><input type="text" id="image" placeholder="या फोटो का URL" style="margin-top:6px"></div>
           <div class="gp-field"><label>कब तक मान्य (Valid Till)</label><input type="date" id="validTill"></div>
           <button type="submit" class="gp-btn" id="offSubmitBtn">Offer Post करें</button>
         </form>
@@ -64,6 +64,7 @@
 
   <script src="config.js"></script>
   <script src="common.js"></script>
+  <script>gpWireUpload({ file: "imageFile", url: "image", status: "imageStatus", preview: "imagePrev", folder: "gahoi-portal/offers" });</script>
   <script>
     let myGahoiId = null;
     let myRole = null;

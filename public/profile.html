@@ -3,53 +3,41 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#7a1f3d">
   <title>मेरी Profile — गहोई पोर्टल</title>
   <link rel="stylesheet" href="common.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>
-    .gp-profile-wrap { max-width: 560px; margin: 0 auto; padding: 20px; }
-    .gp-tier-strip {
-      display: flex; align-items: center; gap: 12px; background: var(--gp-card);
-      border-radius: var(--gp-radius-lg); padding: 16px 20px; box-shadow: var(--gp-shadow); margin-bottom: 18px;
-    }
-    .gp-tier-circle {
-      width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: .95rem; color: #fff; flex-shrink: 0;
-    }
-    .gp-tier-circle.Bronze { background: #b08d57; }
-    .gp-tier-circle.Silver { background: #8c96a3; }
-    .gp-tier-circle.Gold { background: linear-gradient(135deg,#e8a020,#7a5800); }
-    .gp-section {
-      background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 20px;
-      box-shadow: var(--gp-shadow); margin-bottom: 16px;
-    }
-    .gp-section h3 { margin: 0 0 14px; color: var(--gp-navy); font-size: 1rem; }
-    .gp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .gp-toggle-row {
-      display: flex; justify-content: space-between; align-items: center; padding: 8px 0;
-      border-bottom: 1px solid var(--gp-border); font-size: .9rem;
-    }
+    .gp-profile-wrap { max-width: 640px; margin: 0 auto; padding: 20px; }
+    .gp-tier-strip { display: flex; align-items: center; gap: 12px; background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 20px; box-shadow: var(--gp-shadow); margin-bottom: 18px; }
+    .gp-tier-circle { width: 54px; height: 54px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .95rem; color: #fff; flex-shrink: 0; }
+    .gp-tier-circle.Bronze { background: #b08d57; } .gp-tier-circle.Silver { background: #8c96a3; } .gp-tier-circle.Gold { background: linear-gradient(135deg,#e8a020,#7a5800); }
+    .gp-section { background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 20px; box-shadow: var(--gp-shadow); margin-bottom: 16px; }
+    .gp-section h3 { margin: 0 0 14px; color: var(--gp-navy); font-size: 1.15rem; }
+    .gp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    @media (max-width: 560px) { .gp-row { grid-template-columns: 1fr; } }
+    .gp-toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--gp-border); font-size: .9rem; }
     .gp-toggle-row:last-child { border-bottom: none; }
-    .gp-save-bar {
-      position: sticky; bottom: 0; background: var(--gp-bg); padding: 14px 0;
-    }
+    .gp-save-bar { position: sticky; bottom: 0; background: var(--gp-bg); padding: 14px 0; z-index: 5; }
     .gp-photo-section { display: flex; align-items: center; gap: 16px; background: var(--gp-card); border-radius: var(--gp-radius-lg); padding: 16px 20px; box-shadow: var(--gp-shadow); margin-bottom: 18px; }
     .gp-photo-preview { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; background: var(--gp-bg); flex-shrink: 0; }
     .gp-photo-placeholder { display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+    .pf-quick { display: flex; gap: 14px; flex-wrap: wrap; font-size: .86rem; margin-bottom: 12px; }
+    .pf-quick a { color: var(--primary); font-weight: 600; text-decoration: none; }
+    .pf-note { font-size: .78rem; color: var(--gp-text-muted); margin-top: 4px; }
+    .pf-note.warn { color: var(--warning); }
+    .pf-lock { background: var(--gp-bg); }
   </style>
 </head>
 <body>
 
   <div class="gp-header">
     <img src="https://res.cloudinary.com/dtcrife6i/image/upload/f_auto,q_auto/New_-_Logo_aktdtf.png" alt="गहोई पोर्टल">
-    <div>
-      <h1>मेरी Profile</h1>
-      <p class="gp-header-sub">गहोई पोर्टल</p>
-    </div>
+    <div><h1>मेरी Profile</h1><p class="gp-header-sub">पूरी जानकारी देखें और बदलें</p></div>
   </div>
 
   <div class="gp-profile-wrap">
-    <p><a href="home.html">← होम पर वापस</a></p>
+    <div class="pf-quick"><a href="home.html">← होम पर वापस</a><a href="change-password.html">🔑 Password बदलें</a><a href="my-professions.html">🎓 मेरे Professional Tags</a><a href="display-settings.html">🎨 Display Settings</a></div>
 
     <div class="gp-photo-section">
       <img id="photoPreview" class="gp-photo-preview" src="" alt="" style="display:none">
@@ -57,7 +45,7 @@
       <div>
         <label class="gp-btn gp-btn-sm" for="photoInput" style="cursor:pointer">फ़ोटो बदलें</label>
         <input type="file" id="photoInput" accept="image/*" style="display:none">
-        <div id="photoStatus" style="font-size:.78rem;color:var(--gp-text-muted);margin-top:4px"></div>
+        <div id="photoStatus" class="pf-note"></div>
       </div>
     </div>
 
@@ -65,226 +53,231 @@
       <div class="gp-tier-circle Bronze" id="tierCircle">0%</div>
       <div>
         <div style="font-weight:700; color:var(--gp-navy)" id="tierLabel">Bronze Profile</div>
-        <div style="font-size:.82rem; color:var(--gp-text-muted)">ज़्यादा fields भरें, tier अपने-आप बढ़ेगा</div>
+        <div class="pf-note">ज़्यादा fields भरें, tier अपने-आप बढ़ेगा</div>
       </div>
     </div>
 
     <div id="profileAlert" class="gp-alert"></div>
 
-    <form id="profileForm">
+    <form id="profileForm" novalidate>
+      <div class="gp-section">
+        <h3>बुनियादी जानकारी</h3>
+        <div class="gp-row">
+          <div class="gp-field"><label for="name">पूरा नाम *</label><input type="text" id="name" required autocomplete="name"></div>
+          <div class="gp-field"><label for="father">पिता / पति का नाम *</label><input type="text" id="father" required></div>
+        </div>
+        <div class="gp-row">
+          <div class="gp-field"><label for="mobile">मोबाइल नंबर *</label><input type="tel" id="mobile" maxlength="10" inputmode="numeric" required autocomplete="tel-national"><div class="pf-note" id="mobileNote">10 अंक, 6-9 से शुरू</div></div>
+          <div class="gp-field"><label for="email">Email</label><input type="email" id="email" autocomplete="email"><div class="pf-note" id="emailNote"></div></div>
+        </div>
+        <div class="gp-row">
+          <div class="gp-field"><label for="city">वर्तमान शहर *</label><input type="text" id="city" required></div>
+          <div class="gp-field"><label for="native">मूल निवास *</label><input type="text" id="native" required></div>
+        </div>
+        <div class="gp-field"><label for="akna">अकना (कुलनाम) *</label><input type="text" id="akna" required placeholder="Hindi या English में लिखें — जैसे: रेजा / reja"><div class="pf-note">लिखना शुरू करें, मिलते-जुलते अकना नीचे दिखेंगे — सही वाला चुनें।</div></div>
+      </div>
+
       <div class="gp-section">
         <h3>व्यवसाय</h3>
         <div class="gp-row">
-          <div class="gp-field"><label>पेशा</label><input type="text" id="profession"></div>
-          <div class="gp-field"><label>पदनाम</label><input type="text" id="designation"></div>
+          <div class="gp-field"><label for="profession">पेशा</label><input type="text" id="profession"></div>
+          <div class="gp-field"><label for="designation">पदनाम</label><input type="text" id="designation"></div>
         </div>
+        <div class="gp-field"><label for="keywords">Keywords (अधिकतम 5, comma से अलग)</label><input type="text" id="keywords" placeholder="जैसे: कपड़ा, थोक, Jhansi"><div class="pf-note">Directory में खोजने पर आपको जल्दी ढूँढने में मदद मिलती है।</div></div>
       </div>
 
       <div class="gp-section">
         <h3>पता</h3>
-        <div class="gp-field"><label>पूरा पता</label><input type="text" id="address"></div>
-        <div class="gp-field"><label>Pincode</label><input type="text" id="pincode" maxlength="6"></div>
+        <div class="gp-field"><label for="address">पूरा पता</label><input type="text" id="address"></div>
+        <div class="gp-row">
+          <div class="gp-field"><label for="locality">मोहल्ला / Locality</label><input type="text" id="locality"></div>
+          <div class="gp-field"><label for="landmark">Landmark</label><input type="text" id="landmark"></div>
+        </div>
+        <div class="gp-field"><label for="pincode">Pincode</label><input type="text" id="pincode" maxlength="6" inputmode="numeric"></div>
       </div>
 
       <div class="gp-section">
         <h3>व्यक्तिगत</h3>
         <div class="gp-row">
-          <div class="gp-field"><label>जन्मदिन (MM-DD)</label><input type="text" id="bday" placeholder="01-15"></div>
-          <div class="gp-field"><label>Blood Group</label><input type="text" id="bloodGroup" placeholder="O+"></div>
+          <div class="gp-field"><label for="bday">जन्मदिन (MM-DD)</label><input type="text" id="bday" placeholder="01-15"></div>
+          <div class="gp-field"><label for="bloodGroup">Blood Group</label><input type="text" id="bloodGroup" placeholder="O+"></div>
         </div>
         <div class="gp-field">
-          <label>वैवाहिक स्थिति</label>
-          <select id="marital">
-            <option value="Unmarried">Unmarried</option>
-            <option value="Married">Married</option>
-            <option value="Widow">Widow</option>
-            <option value="Widower">Widower</option>
-            <option value="Divorcee">Divorcee</option>
-          </select>
+          <label for="marital">वैवाहिक स्थिति</label>
+          <select id="marital"><option value="Unmarried">Unmarried</option><option value="Married">Married</option><option value="Widow">Widow</option><option value="Widower">Widower</option><option value="Divorcee">Divorcee</option></select>
         </div>
-        <div class="gp-field" id="spouseField" style="display:none">
-          <label>जीवनसाथी का नाम</label><input type="text" id="spouse">
-        </div>
-        <div class="gp-field" id="anniField" style="display:none">
-          <label>Anniversary (MM-DD)</label><input type="text" id="anni" placeholder="02-20">
-        </div>
+        <div class="gp-field" id="spouseField" style="display:none"><label for="spouse">जीवनसाथी का नाम</label><input type="text" id="spouse"></div>
+        <div class="gp-field" id="anniField" style="display:none"><label for="anni">Anniversary (MM-DD)</label><input type="text" id="anni" placeholder="02-20"></div>
       </div>
 
       <div class="gp-section">
         <h3>Bio और Social</h3>
-        <div class="gp-field"><label>About / Bio</label><input type="text" id="bio" maxlength="500"></div>
-        <div class="gp-field"><label>Hobbies</label><input type="text" id="hobbies"></div>
+        <div class="gp-field"><label for="bio">About / Bio</label><input type="text" id="bio" maxlength="500"></div>
         <div class="gp-row">
-          <div class="gp-field"><label>LinkedIn</label><input type="text" id="linkedin"></div>
-          <div class="gp-field"><label>Instagram</label><input type="text" id="instagram"></div>
+          <div class="gp-field"><label for="hobbies">Hobbies</label><input type="text" id="hobbies"></div>
+          <div class="gp-field"><label for="school">School / College</label><input type="text" id="school"></div>
+        </div>
+        <div class="gp-row">
+          <div class="gp-field"><label for="linkedin">LinkedIn</label><input type="text" id="linkedin"></div>
+          <div class="gp-field"><label for="instagram">Instagram</label><input type="text" id="instagram"></div>
+          <div class="gp-field"><label for="twitter">Twitter / X</label><input type="text" id="twitter"></div>
+          <div class="gp-field"><label for="facebook">Facebook</label><input type="text" id="facebook"></div>
         </div>
       </div>
 
       <div class="gp-section">
         <h3>🔐 Privacy Settings</h3>
-        <div class="gp-toggle-row">
-          <span>मोबाइल नंबर दिखाएं</span>
-          <select id="showMobile"><option value="yes">हाँ</option><option value="no">नहीं</option></select>
-        </div>
-        <div class="gp-toggle-row">
-          <span>Social Links दिखाएं</span>
-          <select id="privSocial"><option value="visible">हाँ</option><option value="hidden">नहीं</option></select>
-        </div>
-        <div class="gp-toggle-row">
-          <span>जन्मदिन दिखाएं</span>
-          <select id="privBirthday"><option value="visible">हाँ</option><option value="hidden">नहीं</option></select>
-        </div>
+        <div class="gp-toggle-row"><span>मोबाइल नंबर दिखाएं</span><select id="showMobile"><option value="yes">हाँ</option><option value="no">नहीं</option></select></div>
+        <div class="gp-toggle-row"><span>Social Links दिखाएं</span><select id="privSocial"><option value="visible">हाँ</option><option value="hidden">नहीं</option></select></div>
+        <div class="gp-toggle-row"><span>जन्मदिन दिखाएं</span><select id="privBirthday"><option value="visible">हाँ</option><option value="hidden">नहीं</option></select></div>
       </div>
 
-      <div class="gp-save-bar">
-        <button type="submit" class="gp-btn" id="saveBtn">Save करें</button>
-      </div>
+      <div class="gp-save-bar"><button type="submit" class="gp-btn" id="saveBtn">Save करें</button></div>
     </form>
   </div>
 
   <script src="config.js"></script>
   <script src="common.js"></script>
+  <script src="akna-picker.js"></script>
   <script>
-    let myProfile = null;
+    const $ = (id) => document.getElementById(id);
+    let myProfile = null, authUser = null, aknaPicker = null;
+    // akna-picker.js load न हो पाए तो भी form चले: साधारण text field की तरह (server अकना canonicalize कर ही देता है)
+    function makeAknaPicker(el) {
+      const input = typeof el === "string" ? document.getElementById(el) : el;
+      try { if (typeof gpAknaPicker === "function") { const p = gpAknaPicker({ input }); if (p) return p; } } catch (e) {}
+      return { value: () => input.value.trim(), recognized: () => false, setValue(v) { input.value = v || ""; } };
+    }
+    let emailEditable = true, mobileLocked = false;
 
     function updateTierDisplay(tier, pct) {
-      const circle = document.getElementById("tierCircle");
-      circle.className = "gp-tier-circle " + tier;
-      circle.textContent = pct + "%";
-      document.getElementById("tierLabel").textContent = tier + " Profile";
+      $("tierCircle").className = "gp-tier-circle " + tier; $("tierCircle").textContent = pct + "%"; $("tierLabel").textContent = tier + " Profile";
     }
-
     function toggleMaritalFields() {
-      const married = document.getElementById("marital").value !== "Unmarried";
-      document.getElementById("spouseField").style.display = married ? "block" : "none";
-      document.getElementById("anniField").style.display = married ? "block" : "none";
+      const married = $("marital").value !== "Unmarried";
+      $("spouseField").style.display = married ? "block" : "none"; $("anniField").style.display = married ? "block" : "none";
+    }
+    function showPhoto(url) {
+      if (url) { $("photoPreview").src = url; $("photoPreview").style.display = "block"; $("photoPlaceholder").style.display = "none"; }
+      else { $("photoPreview").style.display = "none"; $("photoPlaceholder").style.display = "flex"; }
     }
 
-    function showPhoto(url) {
-      const img = document.getElementById("photoPreview");
-      const placeholder = document.getElementById("photoPlaceholder");
-      if (url) {
-        img.src = url;
-        img.style.display = "block";
-        placeholder.style.display = "none";
-      } else {
-        img.style.display = "none";
-        placeholder.style.display = "flex";
+    // DB trigger (migration 0021) भी यही नियम लगाता है — यहाँ सिर्फ़ तुरंत feedback के लिए
+    function mobileProblem(m) {
+      if (!/^[6-9][0-9]{9}$/.test(m)) return "मोबाइल 10 अंकों का होना चाहिए और 6, 7, 8 या 9 से शुरू (जैसे 98XXXXXXXX)।";
+      if (/^([0-9])\1{9}$/.test(m) || ["0123456789", "1234567890", "9876543210"].includes(m)) return "यह मोबाइल नंबर सही नहीं लगता — असली नंबर डालें।";
+      return "";
+    }
+    const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+    const csv5 = (s) => s.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 5);
+
+    function setupAccountFields() {
+      const identities = (authUser.identities || []).map((i) => i.provider);
+      const hasEmailLogin = identities.includes("email");
+      const googleOnly = identities.includes("google") && !hasEmailLogin;
+      // Google से जुड़ा email यहाँ से नहीं बदला जा सकता (वह Google account का email है)
+      if (googleOnly) { emailEditable = false; $("email").readOnly = true; $("email").classList.add("pf-lock"); $("emailNote").textContent = "यह email आपके Google account से जुड़ा है।"; }
+      else if (!authUser.email) $("emailNote").textContent = "Email जोड़ें — सूचनाएँ और login-recovery आसान होगी। एक confirmation link आएगी।";
+      else $("emailNote").textContent = "बदलने पर नए email पर confirmation link जाएगी; link खोलने के बाद ही बदलाव लागू होगा।";
+      if (authUser.new_email) { $("emailNote").textContent = "⏳ " + authUser.new_email + " पर बदलाव confirm होना बाकी है — उस mail की link खोलें।"; $("emailNote").className = "pf-note warn"; }
+      // Mobile-OTP से बने account का नंबर verified है — बिना OTP के नहीं बदलेंगे
+      if (authUser.phone) {
+        mobileLocked = true; $("mobile").readOnly = true; $("mobile").classList.add("pf-lock");
+        $("mobileNote").textContent = "✅ यह नंबर OTP से verify है और आपके login से जुड़ा है — बदलने के लिए Admin से संपर्क करें।";
       }
     }
 
     function fillForm(p) {
-      const profile = p.profile || {};
-      const privacy = p.privacy_settings || {};
+      const profile = p.profile || {}, privacy = p.privacy_settings || {};
       showPhoto(p.photo || "");
-      document.getElementById("profession").value = p.profession || "";
-      document.getElementById("designation").value = p.designation || "";
-      document.getElementById("address").value = p.address || "";
-      document.getElementById("pincode").value = p.pincode || "";
-      document.getElementById("bday").value = p.bday || "";
-      document.getElementById("bloodGroup").value = p.blood_group || "";
-      document.getElementById("marital").value = p.marital || "Unmarried";
-      document.getElementById("spouse").value = p.spouse || "";
-      document.getElementById("anni").value = p.anni || "";
-      document.getElementById("bio").value = profile.bio || "";
-      document.getElementById("hobbies").value = profile.hobbies || "";
-      document.getElementById("linkedin").value = profile.linkedin || "";
-      document.getElementById("instagram").value = profile.instagram || "";
-      document.getElementById("showMobile").value = p.show_mobile || "yes";
-      document.getElementById("privSocial").value = privacy.socialLinks === "hidden" ? "hidden" : "visible";
-      document.getElementById("privBirthday").value = privacy.birthday === "hidden" ? "hidden" : "visible";
-      toggleMaritalFields();
-      updateTierDisplay(p.profile_tier || "Bronze", p.completion_percent || 0);
+      const set = (id, v) => { $(id).value = v == null ? "" : v; };
+      set("name", p.name); set("father", p.father); set("mobile", p.mobile);
+      set("email", authUser.new_email ? authUser.email || "" : (authUser.email || p.email || ""));
+      set("city", p.city); set("native", p.native);
+      aknaPicker.setValue(p.akna || "");
+      set("profession", p.profession); set("designation", p.designation); set("keywords", Array.isArray(p.keywords) ? p.keywords.join(", ") : "");
+      set("address", p.address); set("locality", profile.locality); set("landmark", profile.landmark); set("pincode", p.pincode);
+      set("bday", p.bday); set("bloodGroup", p.blood_group); set("marital", p.marital || "Unmarried"); set("spouse", p.spouse); set("anni", p.anni);
+      set("bio", profile.bio); set("hobbies", profile.hobbies); set("school", profile.school);
+      set("linkedin", profile.linkedin); set("instagram", profile.instagram); set("twitter", profile.twitter); set("facebook", profile.facebook);
+      set("showMobile", p.show_mobile || "yes");
+      set("privSocial", privacy.socialLinks === "hidden" ? "hidden" : "visible"); set("privBirthday", privacy.birthday === "hidden" ? "hidden" : "visible");
+      toggleMaritalFields(); updateTierDisplay(p.profile_tier || "Bronze", p.completion_percent || 0);
     }
 
-    document.getElementById("marital").addEventListener("change", toggleMaritalFields);
+    $("marital").addEventListener("change", toggleMaritalFields);
 
-    document.getElementById("photoInput").addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const statusEl = document.getElementById("photoStatus");
-      statusEl.textContent = "Upload हो रहा है...";
-
+    $("photoInput").addEventListener("change", async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      $("photoStatus").textContent = "Upload हो रहा है...";
       const result = await gpUploadToCloudinary(file, "profile-photos");
-      if (!result.success) {
-        statusEl.textContent = "❌ " + result.message;
-        return;
-      }
-
+      if (!result.success) { $("photoStatus").textContent = "❌ " + result.message; return; }
       const { error } = await gpSupabase.from("persons").update({ photo: result.url }).eq("gahoi_id", myProfile.gahoi_id);
-      if (error) {
-        statusEl.textContent = "❌ Save नहीं हुआ: " + error.message;
-        return;
-      }
-
-      myProfile.photo = result.url;
-      showPhoto(result.url);
-      statusEl.textContent = "✅ फ़ोटो update हो गई!";
+      if (error) { $("photoStatus").textContent = "❌ Save नहीं हुआ: " + error.message; return; }
+      myProfile.photo = result.url; showPhoto(result.url); $("photoStatus").textContent = "✅ फ़ोटो update हो गई!";
     });
 
-    document.getElementById("profileForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      gpHideAlert("profileAlert");
-      const btn = document.getElementById("saveBtn");
-      btn.disabled = true;
-      btn.textContent = "Save हो रहा है...";
+    function friendlyDbError(msg) {
+      if (/idx_persons_mobile_unique|persons_mobile/i.test(msg)) return "यह मोबाइल नंबर पहले से किसी और के account में है।";
+      if (/idx_persons_email_lower|persons_email/i.test(msg)) return "यह email पहले से किसी और के account में है।";
+      return msg;
+    }
 
-      const marital = document.getElementById("marital").value;
-      const updatedProfile = {
-        ...(myProfile.profile || {}),
-        bio: document.getElementById("bio").value.trim().slice(0, 500),
-        hobbies: document.getElementById("hobbies").value.trim(),
-        linkedin: document.getElementById("linkedin").value.trim(),
-        instagram: document.getElementById("instagram").value.trim(),
-      };
-      const updatedPrivacy = {
-        ...(myProfile.privacy_settings || {}),
-        socialLinks: document.getElementById("privSocial").value,
-        birthday: document.getElementById("privBirthday").value,
-      };
-
-      // ⚠️ ध्यान दें: status/role/gahoi_id यहाँ भेजे भी जाएं तो कोई असर नहीं होगा —
-      // trigger a_protect_privileged_fields (migration 0007) इन्हें हमेशा पुरानी value पर वापस कर देता है
-      const { data, error } = await gpSupabase
-        .from("persons")
-        .update({
-          profession: document.getElementById("profession").value.trim(),
-          designation: document.getElementById("designation").value.trim(),
-          address: document.getElementById("address").value.trim(),
-          pincode: document.getElementById("pincode").value.trim(),
-          bday: document.getElementById("bday").value.trim(),
-          blood_group: document.getElementById("bloodGroup").value.trim(),
-          marital,
-          spouse: marital !== "Unmarried" ? document.getElementById("spouse").value.trim() : "",
-          anni: marital !== "Unmarried" ? document.getElementById("anni").value.trim() : "",
-          show_mobile: document.getElementById("showMobile").value,
-          profile: updatedProfile,
-          privacy_settings: updatedPrivacy,
-        })
-        .eq("gahoi_id", myProfile.gahoi_id)
-        .select()
-        .single();
-
-      btn.disabled = false;
-      btn.textContent = "Save करें";
-
-      if (error) {
-        gpShowAlert("profileAlert", "Save नहीं हो सका: " + error.message, "error");
-        return;
+    $("profileForm").addEventListener("submit", async (e) => {
+      e.preventDefault(); gpHideAlert("profileAlert");
+      const v = (id) => $(id).value.trim();
+      for (const [id, label] of [["name", "पूरा नाम"], ["father", "पिता / पति का नाम"], ["city", "वर्तमान शहर"], ["native", "मूल निवास"], ["akna", "अकना"]]) {
+        if (!v(id)) { gpShowAlert("profileAlert", "❗ " + label + " आवश्यक है।", "error"); $(id).focus(); return; }
       }
+      const mobile = v("mobile");
+      if (!mobileLocked) { const mp = mobileProblem(mobile); if (mp) { gpShowAlert("profileAlert", "❗ " + mp, "error"); $("mobile").focus(); return; } }
+      const newEmail = v("email").toLowerCase(), curEmail = (authUser.email || "").toLowerCase();
+      const emailChanged = emailEditable && newEmail !== curEmail && newEmail !== "";
+      if (emailChanged && !emailOk(newEmail)) { gpShowAlert("profileAlert", "❗ Email सही नहीं है।", "error"); $("email").focus(); return; }
 
+      const btn = $("saveBtn"); btn.disabled = true; btn.textContent = "Save हो रहा है...";
+      const marital = $("marital").value;
+      const updatedProfile = { ...(myProfile.profile || {}), bio: v("bio").slice(0, 500), hobbies: v("hobbies"), school: v("school"), locality: v("locality"), landmark: v("landmark"),
+        linkedin: v("linkedin"), instagram: v("instagram"), twitter: v("twitter"), facebook: v("facebook") };
+      const updatedPrivacy = { ...(myProfile.privacy_settings || {}), socialLinks: $("privSocial").value, birthday: $("privBirthday").value };
+
+      // ⚠️ status/role/gahoi_id भेजे भी जाएँ तो trigger a_protect_privileged_fields उन्हें पुरानी value पर लौटा देता है
+      const row = { name: v("name"), father: v("father"), city: v("city"), native: v("native"), akna: v("akna"),
+        profession: v("profession"), designation: v("designation"), keywords: csv5(v("keywords")),
+        address: v("address"), pincode: v("pincode"), bday: v("bday"), blood_group: v("bloodGroup"), marital,
+        spouse: marital !== "Unmarried" ? v("spouse") : "", anni: marital !== "Unmarried" ? v("anni") : "",
+        show_mobile: $("showMobile").value, profile: updatedProfile, privacy_settings: updatedPrivacy };
+      if (!mobileLocked) row.mobile = mobile;
+
+      const { data, error } = await gpSupabase.from("persons").update(row).eq("gahoi_id", myProfile.gahoi_id).select().single();
+      if (error) { btn.disabled = false; btn.textContent = "Save करें"; gpShowAlert("profileAlert", "Save नहीं हो सका: " + friendlyDbError(error.message || ""), "error"); return; }
       myProfile = data;
+      aknaPicker.setValue(data.akna || "");          // DB ने canonical Hindi बना दिया हो तो वही दिखाओ
       updateTierDisplay(data.profile_tier, data.completion_percent);
-      gpShowAlert("profileAlert", "✅ Profile update हो गई!", "success");
-      window.scrollTo(0, 0);
+
+      let msg = "✅ Profile update हो गई!", kind = "success";
+      if (emailChanged) {
+        const { error: eerr } = await gpSupabase.auth.updateUser({ email: newEmail }, { emailRedirectTo: window.location.origin + "/auth-callback.html" });
+        if (eerr) { msg = "Profile save हो गई, पर email नहीं बदला: " + (/already|registered|exists/i.test(eerr.message || "") ? "यह email पहले से किसी और के account में है।" : (eerr.message || "फिर कोशिश करें।")); kind = "warning"; }
+        else { msg = "✅ Profile update हो गई। 📧 " + newEmail + " पर confirmation link भेजी गई है — उसे खोलने के बाद email बदलेगा।"; $("emailNote").textContent = "⏳ " + newEmail + " पर बदलाव confirm होना बाकी है — उस mail की link खोलें।"; $("emailNote").className = "pf-note warn"; }
+      }
+      btn.disabled = false; btn.textContent = "Save करें";
+      gpShowAlert("profileAlert", msg, kind); window.scrollTo(0, 0);
     });
 
     (async () => {
       const session = await gpRequireLogin("login.html");
       if (!session) return;
+      authUser = session.user || {};
       myProfile = await gpGetMyProfile();
       if (!myProfile) { window.location.href = "complete-profile.html"; return; }
+      aknaPicker = makeAknaPicker("akna");
+      setupAccountFields();
       fillForm(myProfile);
+      // पुराना email mismatch (auth बदल चुका, persons नहीं) चुपचाप ठीक कर दो; DB trigger आगे से ख़ुद करेगा
+      if (authUser.email && (myProfile.email || "").toLowerCase() !== authUser.email.toLowerCase()) {
+        gpSupabase.from("persons").update({ email: authUser.email.toLowerCase() }).eq("gahoi_id", myProfile.gahoi_id).then(() => {}, () => {});
+      }
     })();
   </script>
 </body>

@@ -20,9 +20,9 @@
       <p class="gp-subtitle">पहला कदम — अपना तरीक़ा चुनें, फिर profile भरें</p>
       <div id="regAlert" class="gp-alert"></div>
 
-      <button type="button" class="gp-btn gp-btn-google" id="googleSignupBtn" style="display:none"><svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92a8.78 8.78 0 002.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86a5.19 5.19 0 01-4.87-3.6H1.1v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M4.13 10.82a5.4 5.4 0 010-3.64V4.85H1.1a9 9 0 000 8.3l3.03-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58A8.6 8.6 0 009 0 9 9 0 001.1 4.85l3.03 2.33A5.19 5.19 0 019 3.58z"/></svg> Google से जारी रखें</button>
-      <p class="gp-hint" id="googleHint" style="text-align:center;margin-top:6px;display:none">Google से email अपने-आप verified मानी जाती है — approval जल्दी मिलने का मौका</p>
-      <div class="gp-divider" id="googleDivider" style="display:none">या</div>
+      <button type="button" class="gp-btn gp-btn-google" id="googleSignupBtn"><svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92a8.78 8.78 0 002.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86a5.19 5.19 0 01-4.87-3.6H1.1v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M4.13 10.82a5.4 5.4 0 010-3.64V4.85H1.1a9 9 0 000 8.3l3.03-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.46 3.44 1.35l2.58-2.58A8.6 8.6 0 009 0 9 9 0 001.1 4.85l3.03 2.33A5.19 5.19 0 019 3.58z"/></svg> Google से जारी रखें</button>
+      <p class="gp-hint" id="googleHint" style="text-align:center;margin-top:6px">Google से email अपने-आप verified मानी जाती है — approval जल्दी मिलने का मौका</p>
+      <div class="gp-divider" id="googleDivider">या</div>
 
       <div class="au-tabs" id="methodTabs"></div>
 
@@ -199,17 +199,17 @@
       $("sentToEmail").textContent = email; $("signupCard").style.display = "none"; $("checkEmailCard").style.display = "block";
     });
 
-    $("googleSignupBtn").addEventListener("click", async () => {
-      gpHideAlert("regAlert");
-      const { error } = await gpSupabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + "/auth-callback.html" } });
-      if (error) gpShowAlert("regAlert", "Google से शुरू नहीं हो सका — फिर कोशिश करें।", "error");
-    });
+    $("googleSignupBtn").addEventListener("click", () => gpAuthGoogle("regAlert"));
 
     gpWirePasswordToggle("pwPassword", "pwEye"); gpWirePasswordToggle("spPassword", "spEye");
     (async () => {
-      cfg = await gpAuthConfig();
-      if (cfg.googleEnabled) { $("googleSignupBtn").style.display = "flex"; $("googleHint").style.display = "block"; $("googleDivider").style.display = "flex"; }
+      let initErr = null;
+      try { cfg = await gpAuthConfig(); } catch (e) { initErr = e; cfg = gpAuthDefaults(); }
+      // Google button पहले से दिखता है; सिर्फ़ Admin ने साफ़-साफ़ OFF किया हो तभी छुपाओ
+      if (!cfg.googleEnabled) { $("googleSignupBtn").style.display = "none"; $("googleHint").style.display = "none"; $("googleDivider").style.display = "none"; }
       buildTabs();
+      if (initErr) gpShowAlert("regAlert", "⚠️ सेटिंग्स load नहीं हो सकीं — सामान्य तरीक़े दिख रहे हैं। (" + (initErr.message || initErr) + ")", "warning");
+      gpAuthDebug(cfg, initErr);
     })();
   </script>
 </body>

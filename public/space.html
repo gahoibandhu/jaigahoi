@@ -59,7 +59,7 @@
 
     <div class="gp-compose">
       <textarea id="postText" placeholder="समाज के साथ क्या साझा करना चाहेंगे?" maxlength="1000"></textarea>
-      <input type="text" id="postImageUrl" placeholder="फ़ोटो का लिंक (ऐच्छिक)">
+      <input type="file" id="postImageFile" accept="image/*" style="margin-top:6px"><img id="postImagePrev" alt="" style="display:none;max-width:160px;max-height:120px;margin-top:6px;border-radius:8px"><div class="gp-hint" id="postImageStatus">फोटो (ऐच्छिक) — चुनते ही upload हो जाती है।</div><input type="hidden" id="postImageUrl">
       <button id="postBtn">पोस्ट करें</button>
     </div>
 
@@ -73,6 +73,7 @@
 
   <script src="config.js"></script>
   <script src="common.js"></script>
+  <script>gpWireUpload({ file: "postImageFile", url: "postImageUrl", status: "postImageStatus", preview: "postImagePrev", folder: "gahoi-portal/space" });</script>
   <script>
     let myGahoiId = null;
     let myName = null;
@@ -209,6 +210,9 @@
 
       textEl.value = "";
       imgEl.value = "";
+      document.getElementById("postImageFile").value = "";
+      document.getElementById("postImagePrev").style.display = "none";
+      document.getElementById("postImageStatus").textContent = "फोटो (ऐच्छिक) — चुनते ही upload हो जाती है।";
       offset = 0;
       await loadPosts(false);
     }

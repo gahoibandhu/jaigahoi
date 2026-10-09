@@ -157,7 +157,14 @@ async function gpCallFunction(functionName, payload) {
     headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
   });
   if (error) {
-    // supabase-js की functions.invoke() error होने पर भी अक्सर response body context.error में होती है
+    // Function ने 4xx/5xx के साथ अपना JSON (success:false + Hindi message) भेजा हो तो वही लौटाओ —
+    // वरना user को सिर्फ़ "Edge Function returned a non-2xx status code" दिखता और असली संदेश खो जाता।
+    try {
+      if (error.context && typeof error.context.json === "function") {
+        const body = await error.context.json();
+        if (body && typeof body === "object" && ("message" in body || "success" in body)) return body;
+      }
+    } catch (e) { /* body JSON नहीं था — नीचे generic संदेश */ }
     return { success: false, message: error.message || "Request failed." };
   }
   return data;
