@@ -144,6 +144,7 @@ interface RegisterPayload {
   anni?: string;
   marital?: string;
   spouse?: string;
+  email?: string;   // सिर्फ़ Mobile-OTP वाले (बिना email) accounts के लिए वैकल्पिक
   photo?: string;
   bloodGroup?: string;
   keywords?: string;
@@ -213,7 +214,10 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ success: false, message: "Invalid session." }, 401);
     }
     const authUser = userData.user;
-    const emailVerified = !!authUser.email_confirmed_at || authUser.app_metadata?.provider === "google";
+    // Verified संपर्क: email-confirm, Google, या (नया) Mobile-OTP से verified phone।
+    // Phone वाला account तभी verified माना जाए जब Supabase ने phone_confirmed_at भरा हो।
+    const phoneVerified = !!authUser.phone_confirmed_at;
+    const emailVerified = !!authUser.email_confirmed_at || authUser.app_metadata?.provider === "google" || phoneVerified;
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -237,6 +241,14 @@ Deno.serve(async (req: Request) => {
     const mobileCheck = isValidIndianMobile(body.mobile);
     if (!mobileCheck.ok) return jsonResponse({ success: false, message: mobileCheck.reason }, 400);
 
+    // Mobile-OTP से बना account: form का mobile वही होना चाहिए जो OTP से verify हुआ (spoofing रोकने के लिए)
+    if (authUser.phone) {
+      const verifiedMobile = String(authUser.phone).replace(/\D/g, "").slice(-10);
+      if (body.mobile !== verifiedMobile) {
+        return jsonResponse({ success: false, message: "Mobile नंबर वही होना चाहिए जो OTP से verify हुआ है।" }, 400);
+      }
+    }
+
     const { data: mobileDupe } = await admin
       .from("persons")
       .select("gahoi_id")
@@ -257,7 +269,7 @@ Deno.serve(async (req: Request) => {
         name: body.name,
         father: body.father,
         mobile: body.mobile,
-        email: authUser.email,
+        email: authUser.email || (body.email ? String(body.email).trim().toLowerCase() : null),
         city: body.city,
         native: body.native,
         akna: body.akna,
