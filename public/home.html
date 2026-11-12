@@ -48,6 +48,15 @@
     .gp-fest-row:last-child { border-bottom: none; }
     .gp-fest-date { min-width: 64px; font-weight: 700; color: var(--gp-navy); font-size: .82rem; }
     .gp-widget-empty { color: var(--gp-text-muted); font-size: .86rem; }
+      .gp-home { max-width: 760px; margin: 16px auto 24px; padding: 0 14px; }
+    .gp-home .qa-grid { margin-bottom: 14px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    @media (max-width: 640px) { .gp-home .qa-grid { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); } }
+    .gp-home-card { padding: 0; overflow: hidden; margin-bottom: 14px; }
+    .gp-home-body { padding: 16px; }
+    .gp-home .gp-widgets { max-width: none; margin: 0; padding: 0; }
+    .gp-home .gp-widget { box-shadow: none; background: var(--light); border: 1px solid var(--border-soft); }
+    .gp-home .gp-tiles { max-width: none; margin: 0; padding: 0; }
+    .gp-home .gp-admin-banner { max-width: none; margin: 0 0 14px; }
   </style>
 </head>
 <body>
@@ -64,43 +73,62 @@
     <button id="logoutBtn">Logout</button>
   </div>
 
-  <div class="gp-welcome">
-    <h2 id="welcomeMsg">नमस्ते!</h2>
-    <p>गहोई पोर्टल में आपका स्वागत है</p>
-  </div>
+  <div class="gp-home">
+    <div class="visit-counter-bar stats-strip" style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:11px 16px;margin-bottom:14px">
+      <div class="stat-pill" style="display:flex;align-items:center;gap:7px;min-width:0"><span style="font-size:1.05rem">🙏</span><span id="welcomeMsg" style="font-size:.95rem;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">नमस्ते!</span></div>
+      <div class="stat-pill" style="display:flex;align-items:center;gap:7px;justify-content:flex-end"><span style="font-size:1.05rem">👥</span><span style="font-size:.78rem;color:rgba(255,255,255,.75);font-weight:500">Members:</span><span id="memberCount" style="font-size:1.05rem;font-weight:800;color:var(--accent)">…</span></div>
+    </div>
 
-  <div class="gp-admin-banner" id="adminBanner">
+    <div class="qa-grid">
+      <a href="space.html" class="qa-btn"><div class="qa-icon">💬</div><div class="qa-label">Gahoi Space</div></a>
+      <a href="matrimony.html" class="qa-btn"><div class="qa-icon">💑</div><div class="qa-label">Matrimony</div></a>
+      <a href="professionals.html" class="qa-btn"><div class="qa-icon">🎓</div><div class="qa-label">समाज के विशिष्ट जन</div></a>
+      <a href="business.html" class="qa-btn"><div class="qa-icon">🏢</div><div class="qa-label">Business</div></a>
+      <a href="mahasabha.html" class="qa-btn"><div class="qa-icon">📋</div><div class="qa-label">Mahasabha</div></a>
+    </div>
+
+    <div class="card gp-home-card">
+      <div class="section-banner blue"><div class="sb-title">🎉 पंचांग &amp; आगामी त्योहार</div><div class="sb-sub">आज का पंचांग • अगले 60 दिनों के त्योहार</div></div>
+      <div class="gp-home-body">
+        <div class="gp-widgets">
+          <div class="gp-widget" id="panchangWidget"><h3>🕉 आज का पंचांग</h3><div class="gp-widget-empty">लोड हो रहा है...</div></div>
+          <div class="gp-widget" id="festivalWidget"><h3>🎉 आने वाले त्योहार</h3><div class="gp-widget-empty">लोड हो रहा है...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card gp-home-card">
+      <div class="section-banner blue"><div class="sb-title">🧭 सभी सेवाएँ</div><div class="sb-sub">पोर्टल की हर सुविधा एक जगह</div></div>
+      <div class="gp-home-body">
+        <div class="gp-tiles">
+          <a href="directory.html" class="gp-tile"><span class="gp-tile-icon">👥</span>Member Directory</a>
+          <a href="professionals.html" class="gp-tile"><span class="gp-tile-icon">🎓</span>समाज के विशिष्ट जन</a>
+          <a href="matrimony.html" class="gp-tile"><span class="gp-tile-icon">💑</span>Matrimony</a>
+          <a href="business.html" class="gp-tile"><span class="gp-tile-icon">🏢</span>Business Directory</a>
+          <a href="jobs.html" class="gp-tile"><span class="gp-tile-icon">💼</span>Job Board</a>
+          <a href="messages.html" class="gp-tile"><span class="gp-tile-icon">✉️</span>Messages</a>
+          <a href="space.html" class="gp-tile"><span class="gp-tile-icon">🌐</span>Gahoi Space</a>
+          <a href="events.html" class="gp-tile"><span class="gp-tile-icon">📅</span>Events</a>
+          <a href="gallery.html" class="gp-tile"><span class="gp-tile-icon">🖼</span>Gallery</a>
+          <a href="offers.html" class="gp-tile"><span class="gp-tile-icon">🎁</span>Current Offers</a>
+          <a href="magazines.html" class="gp-tile"><span class="gp-tile-icon">📰</span>Magazine</a>
+          <a href="mahasabha.html" class="gp-tile"><span class="gp-tile-icon">🏛</span>Mahasabha Membership</a>
+          <a href="known-members.html" class="gp-tile"><span class="gp-tile-icon">🧑‍🤝‍🧑</span>Known Members</a>
+          <a href="referrals.html" class="gp-tile"><span class="gp-tile-icon">🤝</span>Referrals</a>
+          <a href="privacy-dashboard.html" class="gp-tile"><span class="gp-tile-icon">🔒</span>Privacy Dashboard</a>
+          <a href="dharmshala.html" class="gp-tile"><span class="gp-tile-icon">🛕</span>Dharmshala</a>
+          <a href="daan-seva.html" class="gp-tile"><span class="gp-tile-icon">🙏</span>Daan Seva</a>
+          <a href="profile.html" class="gp-tile"><span class="gp-tile-icon">👤</span>मेरी Profile</a>
+          <a href="my-professions.html" class="gp-tile"><span class="gp-tile-icon">🏷</span>मेरे Professional Tags</a>
+          <a href="change-password.html" class="gp-tile"><span class="gp-tile-icon">🔑</span>Password बदलें</a>
+          <a href="display-settings.html" class="gp-tile"><span class="gp-tile-icon">🎨</span>Display Settings</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="gp-admin-banner" id="adminBanner">
     ⚙️ आप Admin/Approver हैं — <a href="admin-pending.html">Pending Approvals</a> &nbsp;|&nbsp; <a href="admin-professions.html">Professional Tags</a> &nbsp;|&nbsp; <a href="admin-auth.html">Login Settings</a> &nbsp;|&nbsp; <a href="admin-aknas.html">अकना Review</a> &nbsp;|&nbsp; <a href="admin-members.html">All Members</a> &nbsp;|&nbsp; <a href="admin-mahasabha.html">Mahasabha Applications</a> &nbsp;|&nbsp; <a href="admin-privacy.html">Privacy & Compliance</a> &nbsp;|&nbsp; <a href="admin-ledger.html">Ledger</a> &nbsp;|&nbsp; <a href="admin-audit-log.html">Audit Log</a> &nbsp;|&nbsp; <a href="admin-broadcast.html">Broadcast Email</a> &nbsp;|&nbsp; <a href="admin-features.html">Feature Flags</a> &nbsp;|&nbsp; <a href="admin-settings.html">Settings</a>
   </div>
-
-  <div class="gp-widgets">
-    <div class="gp-widget" id="panchangWidget"><h3>🕉 आज का पंचांग</h3><div class="gp-widget-empty">लोड हो रहा है...</div></div>
-    <div class="gp-widget" id="festivalWidget"><h3>🎉 आने वाले त्योहार</h3><div class="gp-widget-empty">लोड हो रहा है...</div></div>
-  </div>
-
-  <div class="gp-tiles">
-    <a href="directory.html" class="gp-tile"><span class="gp-tile-icon">👥</span>Member Directory</a>
-    <a href="professionals.html" class="gp-tile"><span class="gp-tile-icon">🎓</span>समाज के विशिष्ट जन</a>
-    <a href="matrimony.html" class="gp-tile"><span class="gp-tile-icon">💑</span>Matrimony</a>
-    <a href="business.html" class="gp-tile"><span class="gp-tile-icon">🏢</span>Business Directory</a>
-    <a href="jobs.html" class="gp-tile"><span class="gp-tile-icon">💼</span>Job Board</a>
-    <a href="messages.html" class="gp-tile"><span class="gp-tile-icon">✉️</span>Messages</a>
-    <a href="space.html" class="gp-tile"><span class="gp-tile-icon">🌐</span>Gahoi Space</a>
-    <a href="events.html" class="gp-tile"><span class="gp-tile-icon">📅</span>Events</a>
-    <a href="gallery.html" class="gp-tile"><span class="gp-tile-icon">🖼</span>Gallery</a>
-    <a href="offers.html" class="gp-tile"><span class="gp-tile-icon">🎁</span>Current Offers</a>
-    <a href="magazines.html" class="gp-tile"><span class="gp-tile-icon">📰</span>Magazine</a>
-    <a href="mahasabha.html" class="gp-tile"><span class="gp-tile-icon">🏛</span>Mahasabha Membership</a>
-    <a href="known-members.html" class="gp-tile"><span class="gp-tile-icon">🧑‍🤝‍🧑</span>Known Members</a>
-    <a href="referrals.html" class="gp-tile"><span class="gp-tile-icon">🤝</span>Referrals</a>
-    <a href="privacy-dashboard.html" class="gp-tile"><span class="gp-tile-icon">🔒</span>Privacy Dashboard</a>
-    <a href="dharmshala.html" class="gp-tile"><span class="gp-tile-icon">🛕</span>Dharmshala</a>
-    <a href="daan-seva.html" class="gp-tile"><span class="gp-tile-icon">🙏</span>Daan Seva</a>
-    <a href="profile.html" class="gp-tile"><span class="gp-tile-icon">👤</span>मेरी Profile</a>
-    <a href="my-professions.html" class="gp-tile"><span class="gp-tile-icon">🏷</span>मेरे Professional Tags</a>
-    <a href="change-password.html" class="gp-tile"><span class="gp-tile-icon">🔑</span>Password बदलें</a>
-    <a href="display-settings.html" class="gp-tile"><span class="gp-tile-icon">🎨</span>Display Settings</a>
-    <a href="privacy-dashboard.html" class="gp-tile"><span class="gp-tile-icon">🔐</span>Privacy Dashboard</a>
   </div>
 
   <script src="config.js"></script>
@@ -130,6 +158,9 @@
 
       loadPanchang();
       loadFestivals();
+      // Members ginti (Approved)
+      gpSupabase.from("persons").select("gahoi_id", { count: "exact", head: true }).eq("status", "Approved")
+        .then(({ count }) => { const el = document.getElementById("memberCount"); if (el) el.textContent = Number.isFinite(count) ? count.toLocaleString("en-IN") : "—"; });
     })();
 
     // ── Panchang + Festivals widgets (table: panchang_daily, festivals — migration 0017) ──

@@ -252,6 +252,7 @@ function gpApplyTheme(key, persist) {
 function gpApplyMode(mode, persist) {
   const m = mode === "classic" ? "classic" : "royal";
   document.documentElement.setAttribute("data-theme-mode", m);
+  gpToggleClassicCss(m === "classic");
   if (persist !== false) { try { localStorage.setItem(GP_MODE_KEY, m); } catch (e) {} }
   return m;
 }
@@ -337,3 +338,100 @@ function gpParseCsvLine(line) {
   }
   out.push(cur); return out;
 }
+
+// ============================================================================
+// Legacy look — purane jaigahoi.in jaisa Header + Nav + Ticker + Mobile tabs
+// (markup/class-naam legacy index.html se; CSS common.css me). Har page par apne-aap lagta hai;
+// kisi page par nahi chahiye to <body data-no-shell> likhein.
+// ============================================================================
+function gpToggleClassicCss(on) {
+  const id = "gp-classic-css", cur = document.getElementById(id);
+  if (on && !cur) { const l = document.createElement("link"); l.id = id; l.rel = "stylesheet"; l.href = "shell-classic.css"; document.head.appendChild(l); }
+  if (!on && cur) cur.remove();
+}
+(function () {
+  const HEADER_HTML = "<header class=\"site-header\"><div class=\"site-header-inner\"><img class=\"header-logo\" src=\"https://res.cloudinary.com/dtcrife6i/image/upload/v1774665185/New_-_Logo_aktdtf.png\" alt=\"गहोई पोर्टल\" fetchpriority=\"high\"><div class=\"header-center\"><div class=\"header-title\">❋ गहोई पोर्टल ❋<br><span style=\"font-size:.62em;font-weight:500;opacity:.88;letter-spacing:.2px\">गहोई वैश्य समाज का अपना पोर्टल</span></div><div class=\"header-sub\">All India Gahoi Vaishya Community Portal</div><div class=\"header-sub\" style=\"display:none\" id=\"header-sub-short\">Gahoi Vaishya Samaj</div><div class=\"header-marquee\"><span>🙏 समाज की सेवा में समर्पित &nbsp;|&nbsp; 25,000+ परिवार &nbsp;|&nbsp; Member Directory · Matrimony · Business · Jobs &nbsp;|&nbsp; गहोई पोर्टल परिवार में आपका स्वागत है 🌸</span></div></div><img class=\"header-poet\" src=\"https://res.cloudinary.com/dtcrife6i/image/upload/v1773380258/Mathili_opa2ns.jpg\" alt=\"Maithili Sharan Gupt\" fetchpriority=\"high\"></div></header>";
+  const TICKER_HTML = "<div class=\"ticker-wrap\" id=\"ticker-wrap\"><div class=\"ticker-track\"><span class=\"ticker-segment\"><span class=\"ticker-text\">🙏 Welcome to Gahoi Portal – गहोई वैश्य समाज &nbsp;|  📧 <span class=\"ticker-email-slot ticker-wa\"></span> &nbsp;|  Member Directory · Matrimony · Business · Jobs · Community Space &nbsp;|  🌟 आपका हार्दिक स्वागत है</span></span> <span class=\"ticker-segment\"><span class=\"ticker-text\">🙏 Welcome to Gahoi Portal – गहोई वैश्य समाज &nbsp;|  📧 <span class=\"ticker-email-slot ticker-wa\"></span> &nbsp;|  Member Directory · Matrimony · Business · Jobs · Community Space &nbsp;|  🌟 आपका हार्दिक स्वागत है</span></span></div></div>";
+  const MAIN = [["home.html","🏠 Home"],["directory.html","🔍 Members"],["professionals.html","🎓 Samaj"],["events.html","🎉 Events"],["matrimony.html","💑 Matrimony"],["jobs.html","💼 Jobs"],["business.html","🏢 Business"],["offers.html","🏷️ Offers"],["space.html","💬 Space"],["magazines.html","📖 Magazine"],["gallery.html","🖼️ Gallery"],["dharmshala.html","🛕 Dharmshala"],["daan-seva.html","🙏 Daan Seva"]];
+  const ADMIN_ALL = [["admin-pending.html","⏳ Pending Approvals"],["admin-members.html","👥 Members"],["admin-mahasabha.html","📋 Mahasabha Applications"],["admin-professions.html","🎓 Professional Tags"],["admin-aknas.html","🏷 अकना Review"],["admin-broadcast.html","📣 Broadcast"],["admin-ledger.html","📒 Ledger"],["admin-audit-log.html","🧾 Audit Log"],["admin-auth.html","🔐 Login Settings"],["admin-features.html","🧩 Features"],["admin-privacy.html","🔒 Privacy / DPDP"],["admin-settings.html","⚙️ Settings"]];
+  const ADMIN_APPROVER = ["admin-pending.html","admin-members.html","admin-mahasabha.html","admin-professions.html","admin-aknas.html","admin-broadcast.html"];
+  const TABS = [["home.html","🏠","Home"],["directory.html","🔍","Search"],["matrimony.html","💑","Matrimony"],["messages.html","💬","Messages"],["profile.html","👤","You"]];
+  const SKIP = ["auth-callback.html","index.html","matrimony-biodata.html"];
+  const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const file = (location.pathname.split("/").pop() || "index.html").toLowerCase();
+  function initials(me) { const n = String((me && me.name) || "?").trim().split(/\s+/); return ((n[0] || "?")[0] + (n[1] ? n[1][0] : "")).toUpperCase(); }
+
+  function navHtml(me) {
+    const link = (h, l, extra) => `<a class="nav-btn${h === file ? " active" : ""}${extra || ""}" href="${h}">${l}</a>`;
+    let menu = "";
+    if (!me) {
+      menu = link("login.html", "🔑 Login / Register", " nav-btn-auth");
+    } else if (me.status !== "Approved" && me.role !== "Admin") {
+      menu = link("profile.html", `<span class="nav-profile-avatar">${esc(initials(me))}</span> <span class="nav-profile-label">Profile</span>`, " nav-btn-profile") + `<a class="nav-btn nlg" href="#" data-logout>↩ Logout</a>`;
+    } else {
+      menu = MAIN.map(([h, l]) => link(h, l)).join("");
+      if (me.role === "Admin" || me.role === "Approver") {
+        const items = me.role === "Admin" ? ADMIN_ALL : ADMIN_ALL.filter((x) => ADMIN_APPROVER.includes(x[0]));
+        const adminActive = items.some((x) => x[0] === file) ? " active" : "";
+        menu += `<div class="nav-admin"><a class="nav-btn${adminActive}" href="#" data-admin-toggle>⚙ Admin ▾</a><div class="nav-admin-menu">${items.map(([h, l]) => `<a href="${h}">${l}</a>`).join("")}</div></div>`;
+      }
+      menu += link("profile.html", `<span class="nav-profile-avatar">${esc(initials(me))}</span> <span class="nav-profile-label">Profile</span>`, " nav-btn-profile");
+      menu += link("messages.html", "✉️ Messages", " nav-btn-messages");
+      menu += link("mahasabha.html", "📋 महासभा");
+      menu += `<a class="nav-btn nlg" href="#" data-logout>↩ Logout</a>`;
+    }
+    return `<nav><a class="nav-logo" href="${me ? "home.html" : "login.html"}" style="text-decoration:none">🏘 गहोई पोर्टल</a>` +
+      `<a class="nav-search-btn" href="directory.html" title="Members खोजें" aria-label="Search">🔍</a>` +
+      `<button class="hamburger" id="hamburger-btn" aria-label="Menu"><span></span><span></span><span></span></button>` +
+      `<a class="nav-theme-btn" href="display-settings.html" title="Theme / Display" aria-label="Display Settings">🎨</a>` +
+      `<div class="nav-menu" id="nav-menu">${menu}</div></nav>`;
+  }
+  function tabsHtml() {
+    return `<div id="mobile-tabs"><div class="mt-row">` + TABS.map(([h, i, l]) => `<a class="mt-tab${h === file ? " active" : ""}" href="${h}" style="text-decoration:none"><span class="mt-icon">${i}</span><span>${l}</span></a>`).join("") + `</div></div>`;
+  }
+
+  function mount() {
+    if (document.body.hasAttribute("data-no-shell") || SKIP.includes(file) || document.getElementById("gp-shell-top")) return;
+    document.body.classList.add("gp-shell");
+    const top = document.createElement("div"); top.id = "gp-shell-top";
+    top.innerHTML = HEADER_HTML + navHtml(null);
+    document.body.insertBefore(top, document.body.firstChild);
+    const tk = document.createElement("div"); tk.innerHTML = TICKER_HTML; while (tk.firstChild) document.body.appendChild(tk.firstChild);
+    document.querySelectorAll(".ticker-email-slot").forEach((e) => { e.innerHTML = '<a href="mailto:gahoi.portal@gmail.com" style="color:inherit;font-weight:700">gahoi.portal@gmail.com</a>'; });
+    const mt = document.createElement("div"); mt.innerHTML = tabsHtml(); document.body.appendChild(mt.firstChild);
+    wire(); fitHero(); window.addEventListener("resize", fitHero);
+    (async () => {                       // login/status jaan kar nav asli banao
+      let me = null;
+      try { const { data: { session } } = await gpSupabase.auth.getSession(); if (session) me = await gpGetMyProfile(); } catch (e) {}
+      const nv = top.querySelector("nav"); const fresh = document.createElement("div"); fresh.innerHTML = navHtml(me);
+      nv.replaceWith(fresh.firstChild); wire();
+      if (!me || (me.status !== "Approved" && me.role !== "Admin")) document.getElementById("mobile-tabs").style.display = "none";
+      if (file === "home.html") modePill();
+    })();
+  }
+  function wire() {
+    const hb = document.getElementById("hamburger-btn"), menu = document.getElementById("nav-menu");
+    if (hb && menu) hb.onclick = () => { hb.classList.toggle("open"); menu.classList.toggle("open"); };
+    document.querySelectorAll("[data-admin-toggle]").forEach((a) => { a.onclick = (e) => { e.preventDefault(); a.parentNode.classList.toggle("open"); }; });
+    document.addEventListener("click", (e) => { document.querySelectorAll(".nav-admin.open").forEach((d) => { if (!d.contains(e.target)) d.classList.remove("open"); }); });
+    document.querySelectorAll("[data-logout]").forEach((a) => { a.onclick = async (e) => { e.preventDefault(); try { await gpSupabase.auth.signOut(); } catch (x) {} window.location.href = "login.html"; }; });
+  }
+  // page ka title-bar (.gp-header) = legacy hero banner, neeche ke content jitni chaudai par
+  function fitHero() {
+    const h = document.querySelector(".gp-header"); if (!h) return;
+    const t = h.querySelector("h1");
+    if (t && t.textContent.trim() === "गहोई पोर्टल") { h.classList.add("gp-hide"); return; }     // login/register: upar ka header hi kaafi
+    let n = h.nextElementSibling; while (n && /^(SCRIPT|STYLE|LINK)$/.test(n.tagName)) n = n.nextElementSibling;
+    if (n) { const w = Math.round(n.getBoundingClientRect().width); if (w > 300) h.style.setProperty("--hero-w", Math.min(w, 1100) + "px"); }
+  }
+  function modePill() {
+    if (document.getElementById("gp-mode-pill")) return;
+    const b = document.createElement("button"); b.id = "gp-mode-pill"; b.type = "button";
+    const classic = gpGetSavedMode() === "classic";
+    b.innerHTML = `<span class="ic">✨</span><span class="ic">🏛</span><span>${classic ? "Switch to Royal" : "Switch to Classic"}</span>`;
+    b.onclick = () => { gpApplyMode(gpGetSavedMode() === "classic" ? "royal" : "classic"); b.remove(); };
+    document.body.appendChild(b);
+    setTimeout(() => { b.style.opacity = "0"; b.style.pointerEvents = "none"; }, 7000);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount); else mount();
+})();
